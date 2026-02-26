@@ -1,0 +1,2736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FOMC Tone Tracker · Dec 2025 SEP</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
+:root{
+  --bg:#080b10;--surface:#0f1319;--s2:#161b24;--s3:#1d2432;
+  --border:#1f2736;--b2:#2a3448;
+  --hawk:#d9542b;--hawkl:rgba(217,84,43,.15);
+  --dove:#2b8fc4;--dovel:rgba(43,143,196,.15);
+  --neut:#6b7a94;--neutl:rgba(107,122,148,.1);
+  --accent:#e8b84b;--accentl:rgba(232,184,75,.1);
+  --green:#3daa6e;--greenl:rgba(61,170,110,.12);
+  --text:#cdd5e0;--dim:#5a6880;--dim2:#3d4a5e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(ellipse 80% 50% at 15% 0%,rgba(43,143,196,.04) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 85% 100%,rgba(217,84,43,.03) 0%,transparent 60%);pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.013) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.013) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+.app{position:relative;z-index:1;display:flex;flex-direction:column;min-height:100vh}
+
+/* ── HEADER ── */
+header{padding:16px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:rgba(8,11,16,.85);backdrop-filter:blur(10px);position:sticky;top:0;z-index:60}
+.logo{display:flex;align-items:baseline;gap:10px}
+.logo h1{font-family:'DM Serif Display',serif;font-size:1.5rem;letter-spacing:-.02em}
+.logo h1 em{font-style:italic;color:var(--accent)}
+.logo-tag{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim);letter-spacing:.1em;border:1px solid var(--border);padding:2px 7px;border-radius:4px;background:var(--surface)}
+.header-right{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.legend{display:flex;gap:14px;font-family:'IBM Plex Mono',monospace;font-size:.63rem;color:var(--dim)}
+.ld{display:flex;align-items:center;gap:5px}
+.ld-dot{width:7px;height:7px;border-radius:50%}
+.status-pill{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:14px;font-family:'IBM Plex Mono',monospace;font-size:.62rem;border:1px solid var(--border);background:var(--surface)}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#3daa6e;box-shadow:0 0 5px #3daa6e;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ── NAV TABS ── */
+.nav-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.ntab{font-family:'IBM Plex Mono',monospace;font-size:.65rem;letter-spacing:.07em;padding:10px 22px;cursor:pointer;color:var(--dim);border-bottom:2px solid transparent;transition:all .15s;border-right:1px solid var(--border)}
+.ntab:hover{color:var(--text);background:var(--s2)}
+.ntab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--s2)}
+
+/* ── FRAMEWORK BAR ── */
+.framework-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--border);flex-shrink:0}
+.fb-cell{background:var(--surface);padding:9px 14px;text-align:center}
+.fb-val{font-family:'DM Serif Display',serif;font-size:1.2rem;line-height:1}
+.fb-label{font-family:'IBM Plex Mono',monospace;font-size:.54rem;color:var(--dim);letter-spacing:.07em;margin-top:2px;text-transform:uppercase}
+.fb-sub{font-size:.6rem;color:var(--dim2);margin-top:2px;font-family:'IBM Plex Mono',monospace}
+
+/* ── CONSENSUS SIGNALS TAB ── */
+.cs-wrap{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:16px}
+.cs-header{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-radius:8px;overflow:hidden;flex-shrink:0}
+.cs-kpi{background:var(--surface);padding:12px 16px;text-align:center}
+.cs-kpi-val{font-family:'DM Serif Display',serif;font-size:1.6rem;line-height:1}
+.cs-kpi-lbl{font-family:'IBM Plex Mono',monospace;font-size:.56rem;color:var(--dim);letter-spacing:.08em;margin-top:3px;text-transform:uppercase}
+.cs-filter-row{display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0;align-items:center}
+.cs-filter-btn{font-family:'IBM Plex Mono',monospace;font-size:.62rem;padding:5px 12px;border-radius:14px;border:1px solid var(--border);background:var(--surface);color:var(--dim);cursor:pointer;transition:all .12s;letter-spacing:.05em}
+.cs-filter-btn:hover{background:var(--s2);color:var(--text)}
+.cs-filter-btn.active{background:var(--accent);color:#080b10;border-color:var(--accent);font-weight:500}
+.cs-filter-lbl{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--dim2);letter-spacing:.07em;text-transform:uppercase}
+.cluster-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .15s}
+.cluster-card:hover{border-color:var(--b2)}
+.cluster-head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.cluster-head:hover{background:var(--s2)}
+.cluster-direction{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cluster-theme{font-family:'IBM Plex Mono',monospace;font-size:.72rem;letter-spacing:.06em;font-weight:500;text-transform:uppercase;flex:1}
+.cluster-meta{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.cluster-count{font-family:'IBM Plex Mono',monospace;font-size:.65rem;padding:3px 9px;border-radius:10px}
+.cluster-strength{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim)}
+.cluster-chevron{font-size:.65rem;color:var(--dim);transition:transform .2s;margin-left:4px}
+.cluster-chevron.open{transform:rotate(180deg)}
+.cluster-body{display:none;flex-direction:column}
+.cluster-body.open{display:flex}
+.signal-row{display:grid;grid-template-columns:152px 1fr 60px;gap:12px;align-items:start;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.03)}
+.signal-row:last-child{border-bottom:none}
+.signal-row:hover{background:rgba(255,255,255,.015);cursor:pointer}
+.signal-member{display:flex;flex-direction:column;gap:3px}
+.signal-member-name{font-size:.78rem;font-weight:500;color:var(--text)}
+.signal-member-meta{font-family:'IBM Plex Mono',monospace;font-size:.57rem;color:var(--dim);line-height:1.5}
+.signal-member-score{font-family:'IBM Plex Mono',monospace;font-size:.6rem;font-weight:600;margin-top:2px}
+.signal-quote-block{display:flex;flex-direction:column;gap:6px;min-width:0}
+.signal-quote{font-size:.8rem;line-height:1.7;color:var(--text);font-style:italic;border-left:2px solid var(--border);padding-left:10px;margin:0}
+.signal-quote mark{background:none;padding:1px 2px;border-radius:2px;font-style:normal;font-weight:600}
+.signal-quote mark.hawk{color:var(--hawk);background:rgba(217,84,43,.12)}
+.signal-quote mark.dove{color:var(--dove);background:rgba(43,143,196,.12)}
+.signal-quote mark.neut{color:var(--accent);background:rgba(232,184,75,.1)}
+.signal-date-venue{font-family:'IBM Plex Mono',monospace;font-size:.56rem;color:var(--dim2);line-height:1.6}
+.signal-keywords{display:flex;gap:4px;flex-wrap:wrap}
+.skw{font-family:'IBM Plex Mono',monospace;font-size:.54rem;padding:1px 5px;border-radius:3px}
+.skw.hawk{background:rgba(217,84,43,.15);color:var(--hawk)}
+.skw.dove{background:rgba(43,143,196,.15);color:var(--dove)}
+.skw.neutral{background:rgba(107,122,148,.12);color:var(--neut)}
+.signal-score-col{text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.signal-score-num{font-family:'DM Serif Display',serif;font-size:1.25rem;line-height:1}
+.signal-weight-pip{font-family:'IBM Plex Mono',monospace;font-size:.53rem;color:var(--dim);background:var(--bg);border:1px solid var(--border);padding:1px 5px;border-radius:3px}
+.cluster-consensus-bar{height:3px;background:var(--border)}
+.cluster-consensus-fill{height:100%;transition:width .4s}
+.cs-empty{text-align:center;padding:60px 20px;color:var(--dim);font-family:'IBM Plex Mono',monospace;font-size:.72rem;line-height:2.2}
+
+/* ── KEY STATEMENTS TAB ── */
+.kq-wrap{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0}
+.kq-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.kq-sort-lbl{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--dim2);letter-spacing:.07em;text-transform:uppercase}
+.kq-btn{font-family:'IBM Plex Mono',monospace;font-size:.61rem;padding:5px 11px;border-radius:14px;border:1px solid var(--border);background:var(--bg);color:var(--dim);cursor:pointer;letter-spacing:.05em;transition:all .12s}
+.kq-btn:hover{background:var(--s2);color:var(--text)}
+.kq-btn.active{background:var(--accent);color:#080b10;border-color:var(--accent);font-weight:600}
+.kq-member-block{border-bottom:1px solid var(--border);background:var(--bg)}
+.kq-member-block:hover{background:rgba(255,255,255,.008)}
+.kq-member-header{display:grid;grid-template-columns:52px 1fr auto;align-items:stretch;cursor:pointer;transition:background .1s}
+.kq-member-header:hover{background:var(--surface)}
+.kq-rank-col{display:flex;align-items:center;justify-content:center;padding:14px 4px 14px 18px}
+.kq-rank{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim2);text-align:center;line-height:1.4}
+.kq-mh-inner{display:flex;align-items:center;gap:11px;padding:13px 10px;flex:1;min-width:0}
+.kq-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:.63rem;font-weight:700;flex-shrink:0}
+.kq-member-info{flex:1;min-width:0}
+.kq-name{font-size:.85rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kq-role{font-family:'IBM Plex Mono',monospace;font-size:.56rem;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kq-badges{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+.kq-score-block{display:flex;align-items:center;gap:10px;padding:13px 18px;flex-shrink:0}
+.kq-composite{font-family:'DM Serif Display',serif;font-size:1.6rem;line-height:1;min-width:44px;text-align:right}
+.kq-verdict-col{text-align:right}
+.kq-verdict{font-family:'IBM Plex Mono',monospace;font-size:.54rem;line-height:1.6}
+.kq-weight-badge{font-family:'IBM Plex Mono',monospace;font-size:.52rem;padding:2px 6px;border-radius:4px;background:var(--bg);border:1px solid var(--border);color:var(--dim);white-space:nowrap}
+.kq-voter-label{font-family:'IBM Plex Mono',monospace;font-size:.5rem;padding:1px 5px;border:1px solid rgba(232,184,75,.35);border-radius:3px;color:var(--accent);white-space:nowrap}
+.kq-dissent-badge{font-family:'IBM Plex Mono',monospace;font-size:.5rem;padding:1px 5px;border-radius:3px;white-space:nowrap}
+.kq-body{padding:0 18px 16px 52px;display:flex;flex-direction:column;gap:9px}
+.kq-key-quote{border-left:3px solid var(--border);padding:10px 14px;font-size:.82rem;line-height:1.78;color:var(--text);font-style:italic;background:var(--surface);border-radius:0 6px 6px 0}
+.kq-key-quote mark.hawk{color:var(--hawk);background:rgba(217,84,43,.14);font-style:normal;font-weight:600;padding:0 2px;border-radius:2px}
+.kq-key-quote mark.dove{color:var(--dove);background:rgba(43,143,196,.14);font-style:normal;font-weight:600;padding:0 2px;border-radius:2px}
+.kq-key-quote mark.neut{color:var(--accent);background:rgba(232,184,75,.1);font-style:normal;font-weight:600;padding:0 2px;border-radius:2px}
+.kq-components{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.kq-comp{font-family:'IBM Plex Mono',monospace;font-size:.56rem;padding:2px 7px;border-radius:4px;border:1px solid var(--border);background:var(--bg);white-space:nowrap}
+.kq-comp-label{font-family:'IBM Plex Mono',monospace;font-size:.56rem;color:var(--dim2);margin-right:2px}
+.kq-reason{font-size:.74rem;line-height:1.65;color:var(--dim);font-style:normal;padding:0 0 0 0}
+.kq-speech-info{font-family:'IBM Plex Mono',monospace;font-size:.57rem;color:var(--dim2);line-height:1.7}
+.kq-keywords{display:flex;gap:4px;flex-wrap:wrap}
+.kq-kw{font-family:'IBM Plex Mono',monospace;font-size:.54rem;padding:1px 6px;border-radius:3px}
+.kq-kw.hawk{background:rgba(217,84,43,.15);color:var(--hawk)}
+.kq-kw.dove{background:rgba(43,143,196,.15);color:var(--dove)}
+.kq-kw.neutral{background:rgba(107,122,148,.12);color:var(--neut)}
+.kq-section-head{font-family:'IBM Plex Mono',monospace;font-size:.59rem;letter-spacing:.1em;text-transform:uppercase;padding:9px 18px;background:var(--s2);border-bottom:1px solid var(--border);border-top:1px solid var(--border);color:var(--dim2);display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:2}
+.kq-section-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.kq-heatbar{height:4px;background:var(--border);overflow:hidden}
+.kq-heatfill{height:100%;transition:width .3s}
+
+/* ── MARKET SIGNALS TAB ── */
+.ms-wrap{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0}
+.ms-topbar{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);flex-shrink:0}
+.ms-kpi{background:var(--surface);padding:11px 16px;text-align:center;position:relative;overflow:hidden}
+.ms-kpi-val{font-family:'DM Serif Display',serif;font-size:1.5rem;line-height:1}
+.ms-kpi-lbl{font-family:'IBM Plex Mono',monospace;font-size:.53rem;color:var(--dim);letter-spacing:.08em;margin-top:3px;text-transform:uppercase}
+.ms-kpi-sub{font-family:'IBM Plex Mono',monospace;font-size:.52rem;color:var(--dim2);margin-top:2px}
+.ms-body{display:flex;flex:1;min-height:0;gap:0}
+.ms-left{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:16px}
+.ms-right{width:300px;flex-shrink:0;border-left:1px solid var(--border);overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.ms-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.ms-panel-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)}
+.ms-panel-title{font-family:'IBM Plex Mono',monospace;font-size:.65rem;letter-spacing:.07em;text-transform:uppercase;color:var(--text)}
+.ms-panel-sub{font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--dim2)}
+.ms-panel-body{padding:14px}
+.ms-chart-area{height:180px;position:relative;background:var(--bg);border-radius:6px;overflow:hidden}
+.ms-overlay-chart{width:100%;height:100%}
+/* Meeting probability bar */
+.ms-meeting{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.03)}
+.ms-meeting:last-child{border-bottom:none}
+.ms-meeting-date{font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--text);white-space:nowrap;min-width:80px}
+.ms-meeting-bars{flex:1;display:flex;flex-direction:column;gap:3px}
+.ms-prob-row{display:flex;align-items:center;gap:6px;height:18px}
+.ms-prob-label{font-family:'IBM Plex Mono',monospace;font-size:.53rem;color:var(--dim);min-width:60px;text-align:right}
+.ms-prob-track{flex:1;background:var(--border);border-radius:2px;height:8px;overflow:hidden}
+.ms-prob-fill{height:100%;border-radius:2px;transition:width .4s}
+.ms-prob-pct{font-family:'IBM Plex Mono',monospace;font-size:.56rem;min-width:34px;text-align:right}
+.ms-entry-row{display:flex;flex-direction:column;gap:5px}
+.ms-entry-label{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim);letter-spacing:.05em}
+.ms-entry-row input,.ms-entry-row select{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:6px 9px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.65rem;width:100%;outline:none}
+.ms-entry-row input:focus,.ms-entry-row select:focus{border-color:var(--accent)}
+.ms-save-btn{font-family:'IBM Plex Mono',monospace;font-size:.63rem;padding:7px 14px;border-radius:6px;background:var(--accent);color:#080b10;border:none;cursor:pointer;font-weight:600;width:100%;letter-spacing:.05em;transition:opacity .15s}
+.ms-save-btn:hover{opacity:.85}
+.ms-entries-list{display:flex;flex-direction:column;gap:0}
+.ms-entry-item{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.ms-entry-item:last-child{border-bottom:none}
+.ms-entry-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.ms-entry-info{flex:1;min-width:0}
+.ms-entry-date{font-family:'IBM Plex Mono',monospace;font-size:.57rem;color:var(--dim2)}
+.ms-entry-vals{font-family:'IBM Plex Mono',monospace;font-size:.61rem;color:var(--text);line-height:1.6}
+.ms-delete-btn{font-size:.65rem;color:var(--dim2);background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:3px;line-height:1}
+.ms-delete-btn:hover{color:var(--hawk);background:rgba(217,84,43,.1)}
+.ms-divider-label{font-family:'IBM Plex Mono',monospace;font-size:.57rem;color:var(--dim2);letter-spacing:.08em;text-transform:uppercase;padding:8px 0 4px}
+.ms-signal-badge{display:inline-flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:3px 8px;border-radius:5px}
+.ms-corr-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.ms-corr-row:last-child{border-bottom:none}
+.ms-corr-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--dim)}
+.ms-corr-val{font-family:'DM Serif Display',serif;font-size:1.1rem}
+.ms-arrow{font-size:1rem;line-height:1}
+.ms-data-notice{font-family:'IBM Plex Mono',monospace;font-size:.56rem;color:var(--dim2);line-height:1.7;padding:8px;background:var(--bg);border-radius:5px;border:1px solid var(--border)}
+.ms-legend-row{display:flex;gap:12px;flex-wrap:wrap}
+.ms-legend-item{display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim)}
+.ms-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.tab-content{display:none;flex:1;min-height:0}
+.tab-content.active{display:flex}
+
+/* === TAB 1: MEMBER VIEW === */
+.t1-wrap{display:grid;grid-template-columns:280px 1fr;flex:1;min-height:0;overflow:hidden}
+.sidebar{border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-head{padding:8px 14px;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.1em;color:var(--dim);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.filter-tabs{display:flex;gap:3px;padding:7px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.ftab{font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid transparent;color:var(--dim);transition:all .12s}
+.ftab:hover{color:var(--text);border-color:var(--border)}
+.ftab.active{background:var(--s3);color:var(--accent);border-color:var(--b2)}
+.member-list{overflow-y:auto;flex:1;padding:6px}
+.member-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:6px;cursor:pointer;border:1px solid transparent;transition:all .12s;margin-bottom:2px}
+.member-item:hover{background:var(--s2);border-color:var(--border)}
+.member-item.active{background:var(--s3);border-color:var(--accent)}
+.mi-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.8rem;flex-shrink:0;border-width:1.5px;border-style:solid}
+.mi-info{flex:1;min-width:0}
+.mi-name{font-size:.8rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi-sub{font-size:.6rem;color:var(--dim);font-family:'IBM Plex Mono',monospace;margin-top:1px}
+.mi-badge{font-family:'IBM Plex Mono',monospace;font-size:.57rem;padding:2px 5px;border-radius:3px;flex-shrink:0;white-space:nowrap}
+.bh{background:var(--hawkl);color:var(--hawk)}
+.bd{background:var(--dovel);color:var(--dove)}
+.bn{background:var(--neutl);color:var(--neut)}
+
+/* Right panel */
+.right-panel{display:flex;flex-direction:column;overflow:hidden;flex:1}
+.rp-hero{padding:14px 22px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.rp-body{display:grid;grid-template-columns:1fr 330px;flex:1;overflow:hidden;min-height:0}
+.main-col{overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:16px}
+.tl-col{border-left:1px solid var(--border);overflow-y:auto;background:var(--surface)}
+.tl-head{padding:9px 14px;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--dim);letter-spacing:.1em;position:sticky;top:0;background:var(--surface);z-index:1}
+
+/* Member hero */
+.member-hero{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.hero-av{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:1.1rem;flex-shrink:0;border-width:2px;border-style:solid}
+.hero-info h2{font-family:'DM Serif Display',serif;font-size:1.25rem;letter-spacing:-.01em}
+.hero-info p{font-size:.66rem;color:var(--dim);font-family:'IBM Plex Mono',monospace;margin-top:1px}
+.hero-kpis{display:flex;gap:14px;margin-left:auto;flex-wrap:wrap;align-items:center}
+.kpi{text-align:right}
+.kpi-v{font-family:'DM Serif Display',serif;font-size:1.2rem;line-height:1}
+.kpi-l{font-size:.58rem;color:var(--dim);font-family:'IBM Plex Mono',monospace;margin-top:2px;text-transform:uppercase}
+.shift-tag{padding:3px 10px;border-radius:12px;font-family:'IBM Plex Mono',monospace;font-size:.64rem;border:1px solid}
+
+/* Panels */
+.panel{background:var(--s2);border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.panel-head{padding:9px 14px;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--dim);letter-spacing:.08em;display:flex;align-items:center;justify-content:space-between;text-transform:uppercase}
+.panel-body{padding:14px}
+
+/* 3-cell anatomy */
+.anatomy-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ac{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:11px}
+.ac-lbl{font-family:'IBM Plex Mono',monospace;font-size:.56rem;color:var(--dim);letter-spacing:.07em;margin-bottom:5px;text-transform:uppercase}
+.ac-val{font-family:'DM Serif Display',serif;font-size:1.35rem;line-height:1}
+.ac-sub{font-size:.67rem;color:var(--dim);margin-top:4px;line-height:1.4}
+.ac-bar{height:3px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden}
+.ac-fill{height:100%;border-radius:2px;transition:width .5s ease}
+
+/* Timeline cards */
+.tl-card{padding:11px 13px;border-bottom:1px solid var(--border);transition:background .1s}
+.tl-card:hover{background:var(--s2)}
+.tl-top{display:flex;align-items:flex-start;gap:9px}
+.tl-circle-wrap{text-align:center;flex-shrink:0;width:42px}
+.tl-circle{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:.68rem;font-weight:500;border-width:1.5px;border-style:solid;margin:0 auto}
+.tl-cls{font-size:.52rem;font-family:'IBM Plex Mono',monospace;margin-top:2px;text-align:center;color:var(--dim)}
+.tl-meta{flex:1;min-width:0}
+.tl-title{font-size:.8rem;font-weight:500;line-height:1.3}
+.tl-date{font-size:.62rem;color:var(--dim);font-family:'IBM Plex Mono',monospace;margin-top:1px}
+.tl-reason{font-size:.71rem;color:var(--dim);margin-top:5px;line-height:1.5;font-style:italic}
+.tl-kws{margin-top:5px;display:flex;flex-wrap:wrap;gap:3px}
+.kw{font-size:.59rem;font-family:'IBM Plex Mono',monospace;padding:1px 5px;border-radius:3px}
+.kwh{color:var(--hawk);background:var(--hawkl)}
+.kwd{color:var(--dove);background:var(--dovel)}
+.kwn{color:var(--neut);background:var(--neutl)}
+.sc-breakdown{margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:5px;border:1px solid var(--border)}
+.sc-row{display:flex;justify-content:space-between;padding:1px 0}
+.sc-lbl{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim)}
+.sc-val{font-family:'IBM Plex Mono',monospace;font-size:.62rem}
+.delta{font-family:'IBM Plex Mono',monospace;font-size:.6rem;padding:1px 4px;border-radius:3px;margin-left:4px}
+.dth{color:var(--hawk);background:var(--hawkl)}
+.dtd{color:var(--dove);background:var(--dovel)}
+.dtn{color:var(--neut);background:var(--neutl)}
+.tag-latest{font-family:'IBM Plex Mono',monospace;font-size:.52rem;background:var(--accent);color:#080b10;padding:1px 4px;border-radius:3px;vertical-align:middle;margin-left:3px}
+
+/* Overview */
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:9px}
+.ov-card{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:all .13s}
+.ov-card:hover{border-color:var(--b2);transform:translateY(-1px)}
+.ov-card.active{border-color:var(--accent)}
+.ov-name{font-size:.8rem;font-weight:500;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-role{font-size:.58rem;color:var(--dim);font-family:'IBM Plex Mono',monospace;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-score{font-family:'DM Serif Display',serif;font-size:1.25rem;line-height:1}
+.ov-stance{font-size:.58rem;font-family:'IBM Plex Mono',monospace;margin-top:1px}
+.ov-sep{font-size:.6rem;font-family:'IBM Plex Mono',monospace;color:var(--dim);margin-top:4px}
+.ov-bar{height:3px;background:var(--border);border-radius:2px;margin-top:7px;overflow:hidden}
+.ov-fill{height:100%;border-radius:2px}
+
+/* === TAB 2: SEP DOT MAP === */
+.t2-wrap{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:20px}
+.dot-map-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.dot-tier{background:var(--s2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.dt-head{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.dt-rate{font-family:'DM Serif Display',serif;font-size:1.5rem;line-height:1}
+.dt-info{text-align:right}
+.dt-label{font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--dim);text-transform:uppercase}
+.dt-cuts{font-family:'IBM Plex Mono',monospace;font-size:.7rem;margin-top:1px}
+.dt-body{padding:14px}
+.dt-member-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.dt-member-row:last-child{border-bottom:none}
+.dt-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.75rem;flex-shrink:0;border-width:1.5px;border-style:solid}
+.dt-minfo{flex:1;min-width:0}
+.dt-mname{font-size:.8rem;font-weight:500}
+.dt-mrole{font-size:.58rem;color:var(--dim);font-family:'IBM Plex Mono',monospace;margin-top:0px}
+.dt-right{text-align:right;flex-shrink:0}
+.dt-tone{font-family:'IBM Plex Mono',monospace;font-size:.68rem;font-weight:500}
+.dt-align{font-size:.58rem;font-family:'IBM Plex Mono',monospace;margin-top:2px}
+.confidence-bar{display:flex;align-items:center;gap:6px;margin-top:4px}
+.conf-label{font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--dim);flex-shrink:0}
+.conf-pips{display:flex;gap:2px}
+.conf-pip{width:8px;height:4px;border-radius:1px;background:var(--border)}
+.conf-pip.filled{background:var(--accent)}
+.dt-evidence{margin-top:8px;padding:7px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);font-size:.67rem;line-height:1.5;color:var(--dim)}
+.dt-anon{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.dt-anon:last-child{border-bottom:none}
+.anon-dot{width:28px;height:28px;border-radius:50%;border:1.5px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:.6rem;color:var(--dim2);flex-shrink:0}
+.anon-text{font-size:.72rem;color:var(--dim2);font-family:'IBM Plex Mono',monospace}
+
+/* alignment badges */
+.align-tight{color:var(--green);background:var(--greenl);padding:1px 5px;border-radius:3px;font-size:.56rem;font-family:'IBM Plex Mono',monospace}
+.align-loose-h{color:var(--hawk);background:var(--hawkl);padding:1px 5px;border-radius:3px;font-size:.56rem;font-family:'IBM Plex Mono',monospace}
+.align-loose-d{color:var(--dove);background:var(--dovel);padding:1px 5px;border-radius:3px;font-size:.56rem;font-family:'IBM Plex Mono',monospace}
+
+/* summary matrix */
+.matrix-wrap{background:var(--s2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.matrix-table{width:100%;border-collapse:collapse}
+.matrix-table th{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim);letter-spacing:.07em;text-transform:uppercase;padding:9px 12px;border-bottom:1px solid var(--border);text-align:left;background:var(--surface)}
+.matrix-table td{padding:8px 12px;border-bottom:1px solid var(--border);font-size:.78rem}
+.matrix-table tr:last-child td{border-bottom:none}
+.matrix-table tr:hover td{background:var(--s3)}
+.mt-av{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.72rem;border-width:1.5px;border-style:solid;vertical-align:middle;margin-right:7px}
+.voter-star{color:var(--accent);font-size:.7rem;margin-left:3px}
+
+/* Chart */
+.chart-inner{height:215px}
+
+/* Loading */
+#loadOverlay{position:fixed;inset:0;background:rgba(8,11,16,.96);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;backdrop-filter:blur(6px)}
+#loadOverlay h2{font-family:'DM Serif Display',serif;font-size:1.4rem}
+#loadOverlay p{font-family:'IBM Plex Mono',monospace;font-size:.67rem;color:var(--dim);text-align:center;max-width:420px;line-height:1.9}
+.prog-track{width:340px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+/* API key screen */
+#apiScreen{position:fixed;inset:0;background:rgba(8,11,16,.97);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;backdrop-filter:blur(6px)}
+#apiScreen h2{font-family:'DM Serif Display',serif;font-size:1.5rem;margin:0}
+#apiScreen p{font-family:'IBM Plex Mono',monospace;font-size:.67rem;color:var(--dim);text-align:center;max-width:400px;line-height:1.9;margin:0}
+#apiKeyInput{width:380px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-family:'IBM Plex Mono',monospace;font-size:.78rem;outline:none;letter-spacing:.04em}
+#apiKeyInput:focus{border-color:var(--accent)}
+#apiStartBtn{padding:10px 28px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;letter-spacing:.08em;cursor:pointer;text-transform:uppercase}
+#apiStartBtn:hover{opacity:.85}
+#apiErr{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:#e05c5c;min-height:1rem;text-align:center}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--dove),var(--accent),var(--hawk));border-radius:2px;transition:width .3s ease}
+#loadStatus{font-family:'IBM Plex Mono',monospace;font-size:.66rem;color:var(--dim)}
+
+/* ── CHAT TAB ── */
+.chat-wrap{display:flex;flex-direction:column;flex:1;min-height:0;padding:20px;max-width:860px;margin:0 auto;width:100%}
+.chat-api-bar{display:flex;gap:8px;margin-bottom:12px;align-items:center}
+.chat-api-bar input{flex:1;background:var(--s2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:.7rem;outline:none}
+.chat-api-bar input:focus{border-color:var(--accent)}
+.chat-api-bar input::placeholder{color:var(--dim)}
+.chat-key-saved{font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--green)}
+.chat-context-badge{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--dim);border:1px solid var(--border);padding:3px 10px;border-radius:10px;display:inline-flex;align-items:center;gap:6px;margin-bottom:12px}
+.chat-context-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green)}
+.chat-suggestions{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+.chat-sug{background:var(--s2);border:1px solid var(--border);color:var(--dim);padding:5px 12px;border-radius:14px;font-size:.7rem;cursor:pointer;transition:all .15s;font-family:'IBM Plex Mono',monospace}
+.chat-sug:hover{border-color:var(--accent);color:var(--accent)}
+.chat-messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;min-height:300px;max-height:calc(100vh - 380px);padding-bottom:8px}
+.chat-msg{display:flex;gap:12px;animation:fadeUp .2s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.chat-msg.user{flex-direction:row-reverse}
+.chat-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;flex-shrink:0;margin-top:2px;font-weight:700}
+.chat-msg.user .chat-avatar{background:var(--accent);color:#000}
+.chat-msg.assistant .chat-avatar{background:var(--s3);border:1px solid var(--border);color:var(--dim)}
+.chat-bubble{max-width:84%;padding:11px 15px;border-radius:10px;font-size:.83rem;line-height:1.65}
+.chat-msg.user .chat-bubble{background:var(--accentl);border:1px solid rgba(232,184,75,.2);border-radius:10px 2px 10px 10px}
+.chat-msg.assistant .chat-bubble{background:var(--s2);border:1px solid var(--border);border-radius:2px 10px 10px 10px}
+.chat-bubble strong{color:var(--accent)}
+.chat-bubble em{color:var(--dove);font-style:normal}
+.chat-typing{display:flex;gap:4px;align-items:center;padding:4px 0}
+.chat-typing span{width:6px;height:6px;border-radius:50%;background:var(--dim);animation:typDot 1.2s infinite}
+.chat-typing span:nth-child(2){animation-delay:.2s}
+.chat-typing span:nth-child(3){animation-delay:.4s}
+@keyframes typDot{0%,60%,100%{opacity:.2}30%{opacity:1}}
+.chat-input-row{display:flex;gap:8px;margin-top:12px}
+.chat-input{flex:1;background:var(--s2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:.84rem;font-family:'DM Sans',sans-serif;resize:none;outline:none;transition:border-color .15s;min-height:44px;max-height:120px}
+.chat-input:focus{border-color:var(--accent)}
+.chat-input::placeholder{color:var(--dim)}
+.chat-send-btn{background:var(--accent);color:#000;border:none;border-radius:8px;padding:10px 18px;cursor:pointer;font-weight:600;font-size:.83rem;transition:opacity .15s;align-self:flex-end;font-family:'DM Sans',sans-serif}
+.chat-send-btn:disabled{opacity:.35;cursor:default}
+.chat-send-btn:hover:not(:disabled){opacity:.82}
+
+</style>
+</head>
+<body>
+
+<!-- API Key Entry Screen -->
+<div id="apiScreen">
+  <h2>FOMC Tone Tracker</h2>
+  <p>Enter your Anthropic API key to score all 172 speeches using Claude AI. Your key is used only in your browser and never stored or transmitted anywhere else.</p>
+  <input id="apiKeyInput" type="password" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false"/>
+  <div id="apiErr"></div>
+  <button id="apiStartBtn" onclick="startWithKey()">Analyze Speeches →</button>
+  <p style="font-size:.6rem;opacity:.5">Get a key at console.anthropic.com · Usage billed to your account</p>
+</div>
+
+<!-- Scoring Progress Screen -->
+<div id="loadOverlay" style="display:none">
+  <h2>Analyzing FOMC Speeches</h2>
+  <p>Scoring all speeches on three quantitative dimensions: policy stance vs. neutral rate · inflation/labor focus balance · rate direction signals. Mapping tone scores to Dec 2025 SEP dot positions.</p>
+  <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+  <div id="loadStatus">Initializing…</div>
+</div>
+
+<div class="app">
+<header>
+  <div class="logo">
+    <h1>FOMC <em>Tone</em> Tracker</h1>
+    <span class="logo-tag">DEC 2025 SEP</span>
+  </div>
+  <div class="header-right">
+    <div class="legend">
+      <div class="ld"><div class="ld-dot" style="background:var(--hawk)"></div>Hawkish</div>
+      <div class="ld"><div class="ld-dot" style="background:var(--dove)"></div>Dovish</div>
+      <div class="ld"><div class="ld-dot" style="background:var(--neut)"></div>Neutral</div>
+      <div class="ld"><div class="ld-dot" style="background:var(--accent)"></div>Latest</div>
+    </div>
+    <div class="status-pill"><div class="live-dot"></div><span id="statusTxt">Loading…</span></div>
+  </div>
+</header>
+
+<!-- NAV -->
+<div class="nav-tabs">
+  <div class="ntab active" onclick="switchTab('members',this)">MEMBER TONE TRACKER</div>
+  <div class="ntab" onclick="switchTab('dotmap',this)">SEP DOT MAPPING</div>
+  <div class="ntab" onclick="switchTab('consensus',this);renderConsensus()">CONSENSUS SIGNALS</div>
+  <div class="ntab" onclick="switchTab('keyquotes',this);renderKeyQuotes()">KEY STATEMENTS</div>
+  <div class="ntab" onclick="switchTab('marketsignals',this);renderMarketSignals()">MARKET SIGNALS</div>
+  <div class="ntab" onclick="switchTab('chat',this);initChat()">⚡ ASK THE DATA</div>
+</div>
+
+<!-- FRAMEWORK BAR -->
+<div class="framework-bar" style="grid-template-columns:repeat(7,1fr)">
+  <div class="fb-cell" id="fbCompositeCell" style="background:var(--s2);border-right:2px solid var(--accent)33">
+    <div class="fb-val" id="fbCompositeVal" style="font-size:1.6rem">—</div>
+    <div class="fb-label" style="color:var(--accent)">FOMC COMPOSITE</div>
+    <div class="fb-sub" id="fbCompositeSub" style="color:var(--dim)">weighted avg · all members</div>
+  </div>
+  <div class="fb-cell"><div class="fb-val" style="color:var(--accent)">3.625%</div><div class="fb-label">Current Rate</div><div class="fb-sub">3.50–3.75% target</div></div>
+  <div class="fb-cell"><div class="fb-val" style="color:var(--neut)">3.0%</div><div class="fb-label">Neutral (LR)</div><div class="fb-sub">SEP median · range 2.6–3.9%</div></div>
+  <div class="fb-cell"><div class="fb-val" style="color:var(--hawk)">+62.5 bps</div><div class="fb-label">Above Neutral</div><div class="fb-sub">Modestly restrictive</div></div>
+  <div class="fb-cell"><div class="fb-val" style="color:var(--accent)">3.375%</div><div class="fb-label">2026 Median Dot</div><div class="fb-sub">1 cut · 4 of 19 members</div></div>
+  <div class="fb-cell"><div class="fb-val">2.125–3.875%</div><div class="fb-label">2026 Dot Range</div><div class="fb-sub">6 cuts ↔ 1 hike · 19 members</div></div>
+  <div class="fb-cell"><div class="fb-val" style="color:var(--dove)">2.4%</div><div class="fb-label">2026 PCE Median</div><div class="fb-sub">vs. 2.0% target (+40bps)</div></div>
+</div>
+
+<!-- TAB 1: MEMBERS -->
+<div class="tab-content active" id="tab-members">
+<div class="t1-wrap">
+  <div class="sidebar">
+    <div class="sidebar-head"><span>FOMC PARTICIPANTS</span><span id="memberCountBadge" style="color:var(--accent);font-size:.58rem"></span></div>
+    <div class="filter-tabs">
+      <div class="ftab active" onclick="setFilter('all',this)">ALL</div>
+      <div class="ftab" onclick="setFilter('hawk',this)">HAWKS</div>
+      <div class="ftab" onclick="setFilter('dove',this)">DOVES</div>
+      <div class="ftab" onclick="setFilter('shift',this)">SHIFTING</div>
+    </div>
+    <div class="member-list" id="memberList"></div>
+  </div>
+  <div class="right-panel">
+    <div class="rp-hero" id="rpHero"><div style="color:var(--dim);font-size:.82rem;text-align:center;padding:8px 0">Select a member to view their quantitative tone profile</div></div>
+    <div class="rp-body">
+      <div class="main-col" id="mainCol">
+        <div id="overviewSection">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--dim);letter-spacing:.09em;margin-bottom:10px;text-transform:uppercase">Overview — Latest Composite Tone Scores</div>
+          <div class="ov-grid" id="overviewGrid"></div>
+        </div>
+      </div>
+      <div class="tl-col">
+        <div class="tl-head">SPEECH TIMELINE</div>
+        <div id="timeline"><div style="padding:36px 14px;text-align:center;color:var(--dim);font-size:.8rem">Select a member</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- TAB 2: SEP DOT MAP -->
+<div class="tab-content" id="tab-dotmap">
+<div class="t2-wrap">
+  <!-- Summary intro -->
+  <div class="panel">
+    <div class="panel-head"><span>Dec 2025 SEP — End-2026 Fed Funds Rate Dot Distribution</span><span style="color:var(--neut)">19 Participants · Anonymous by design · Assignments estimated</span></div>
+    <div class="panel-body">
+      <p style="font-size:.78rem;line-height:1.7;color:var(--dim);margin-bottom:12px">The dot plot is anonymous — individual assignments are inferred from: (1) public dissent votes, (2) explicit rate guidance in speeches, (3) characterisation of policy restrictiveness relative to neutral, and (4) the quantitative tone scores derived from this tool. Confidence levels reflect the strength of evidence available. Neutral rate = <strong style="color:var(--text)">3.0%</strong>. Current rate = <strong style="color:var(--accent)">3.625%</strong> (midpoint), placing policy <strong style="color:var(--hawk)">+62.5bps above neutral</strong> — "modestly restrictive" per the SEP median.</p>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border-radius:6px;overflow:hidden" id="distBar"></div>
+    </div>
+  </div>
+
+  <!-- Dot tiers grid -->
+  <div class="dot-map-grid" id="dotMapGrid"></div>
+
+  <!-- Full matrix table -->
+  <div class="matrix-wrap">
+    <div class="panel-head" style="padding:9px 14px;border-bottom:1px solid var(--border)"><span>Complete Member × Dot Alignment Matrix</span><span style="color:var(--dim);font-size:.58rem">★ = 2026 FOMC voter</span></div>
+    <table class="matrix-table" id="matrixTable">
+      <thead><tr>
+        <th>Member</th><th>Role</th><th>Est. 2026 Dot</th><th>Implied Cuts</th><th>Speech Tone</th><th>Alignment</th><th>Confidence</th><th>Key Evidence</th>
+      </tr></thead>
+      <tbody id="matrixBody"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<div class="tab-content" id="tab-consensus">
+<div class="cs-wrap" id="consensusWrap">
+  <div class="cs-empty">Run scoring first — then open this tab to see consensus signals.</div>
+</div>
+</div>
+
+<div class="tab-content" id="tab-keyquotes">
+<div class="kq-wrap" id="keyQuotesWrap">
+  <div class="cs-empty">Score speeches first — then open this tab to see key statements by member.</div>
+</div>
+</div>
+
+<div class="tab-content" id="tab-marketsignals">
+<div class="ms-wrap" id="msWrap">
+  <div class="ms-topbar" id="msTopBar">
+    <div class="ms-kpi"><div class="ms-kpi-val" style="color:var(--dim2)">—</div><div class="ms-kpi-lbl">Next Mtg Cut %</div><div class="ms-kpi-sub">CME FedWatch</div></div>
+    <div class="ms-kpi"><div class="ms-kpi-val" style="color:var(--dim2)">—</div><div class="ms-kpi-lbl">Next Mtg Hold %</div><div class="ms-kpi-sub">CME FedWatch</div></div>
+    <div class="ms-kpi"><div class="ms-kpi-val" style="color:var(--dim2)">—</div><div class="ms-kpi-lbl">Year-End Implied</div><div class="ms-kpi-sub">Implied cuts from now</div></div>
+    <div class="ms-kpi"><div class="ms-kpi-val" style="color:var(--dim2)">—</div><div class="ms-kpi-lbl">FOMC Composite</div><div class="ms-kpi-sub">Tone score</div></div>
+    <div class="ms-kpi"><div class="ms-kpi-val" style="color:var(--dim2)">—</div><div class="ms-kpi-lbl">Alignment</div><div class="ms-kpi-sub">Tone vs market</div></div>
+  </div>
+  <div class="ms-body">
+    <div class="ms-left" id="msLeft">
+      <!-- Chart and meeting grid render here -->
+      <div class="ms-panel">
+        <div class="ms-panel-head">
+          <span class="ms-panel-title">Tone vs Market Implied Cuts — Overlay</span>
+          <span class="ms-panel-sub">Add FedWatch data via the panel → to populate</span>
+        </div>
+        <div class="ms-panel-body" style="padding:10px">
+          <canvas id="msOverlayChart" height="200"></canvas>
+        </div>
+      </div>
+      <div class="ms-panel" id="msMeetingPanel">
+        <div class="ms-panel-head">
+          <span class="ms-panel-title">Meeting-by-Meeting Probabilities</span>
+          <span class="ms-panel-sub" id="msMeetingSource">No data yet</span>
+        </div>
+        <div id="msMeetingBody" style="padding:8px 0"></div>
+      </div>
+      <div class="ms-panel" id="msInsightPanel">
+        <div class="ms-panel-head">
+          <span class="ms-panel-title">Divergence Analysis</span>
+          <span class="ms-panel-sub">Tone–market alignment over time</span>
+        </div>
+        <div class="ms-panel-body" id="msInsightBody">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--dim);text-align:center;padding:20px">Add FedWatch snapshots to see divergence analysis</div>
+        </div>
+      </div>
+    </div>
+    <div class="ms-right" id="msRight">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid var(--border)">Add FedWatch Snapshot</div>
+      <div class="ms-data-notice">Read probabilities from <strong style="color:var(--text)">cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html</strong> and enter them below. Data is stored locally in your browser session.</div>
+      <div class="ms-entry-row">
+        <span class="ms-entry-label">SNAPSHOT DATE</span>
+        <input type="date" id="msDate">
+      </div>
+      <div class="ms-entry-row">
+        <span class="ms-entry-label">NEXT MEETING</span>
+        <select id="msNextMeeting">
+          <option value="2026-03-19">Mar 19, 2026</option>
+          <option value="2026-05-07">May 7, 2026</option>
+          <option value="2026-06-17">Jun 17, 2026</option>
+          <option value="2026-07-29">Jul 29, 2026</option>
+          <option value="2026-09-16">Sep 16, 2026</option>
+          <option value="2026-11-04">Nov 4, 2026</option>
+          <option value="2026-12-16">Dec 16, 2026</option>
+        </select>
+      </div>
+      <div class="ms-entry-row">
+        <span class="ms-entry-label">NEXT MTG: CUT % <span style="color:var(--dove)">(−25bp)</span></span>
+        <input type="number" id="msCutProb" min="0" max="100" placeholder="e.g. 18">
+      </div>
+      <div class="ms-entry-row">
+        <span class="ms-entry-label">NEXT MTG: HOLD % <span style="color:var(--neut)">(unchanged)</span></span>
+        <input type="number" id="msHoldProb" min="0" max="100" placeholder="e.g. 78">
+      </div>
+      <div class="ms-entry-row">
+        <span class="ms-entry-label">NEXT MTG: HIKE % <span style="color:var(--hawk)">(+25bp)</span></span>
+        <input type="number" id="msHikeProb" min="0" max="100" placeholder="e.g. 4">
+      </div>
+      <div class="ms-entry-row">
+        <span class="ms-entry-label">DEC 2026 MOST LIKELY RATE <span style="color:var(--dim)">(year-end implied)</span></span>
+        <select id="msYearEnd">
+          <option value="4.125">4.125% (no cuts)</option>
+          <option value="3.875">3.875% (1 cut)</option>
+          <option value="3.625" selected>3.625% (hold / 0 net)</option>
+          <option value="3.375">3.375% (1 cut from now)</option>
+          <option value="3.125">3.125% (2 cuts)</option>
+          <option value="2.875">2.875% (3 cuts)</option>
+          <option value="2.625">2.625% (4 cuts)</option>
+          <option value="2.375">2.375% (5 cuts)</option>
+        </select>
+      </div>
+      <div class="ms-entry-row">
+        <span class="ms-entry-label">NOTES <span style="color:var(--dim)">(optional)</span></span>
+        <input type="text" id="msNotes" placeholder="e.g. post-CPI, post-FOMC…">
+      </div>
+      <button class="ms-save-btn" onclick="saveMsEntry()">+ SAVE SNAPSHOT</button>
+      <div class="ms-divider-label">Saved Snapshots</div>
+      <div id="msEntriesList" class="ms-entries-list">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--dim2);text-align:center;padding:12px 0">No snapshots saved yet</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+
+<div class="tab-content" id="tab-chat">
+  <div class="chat-wrap">
+    <div style="margin-bottom:14px">
+      <div style="font-family:'DM Serif Display',serif;font-size:1.25rem;margin-bottom:3px">Ask the <em style="color:var(--accent)">FOMC Data</em></div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--dim)">Powered by Claude · 172 speeches · 21 members · Dec 2025 SEP dots</div>
+    </div>
+    <div class="chat-api-bar">
+      <input type="password" id="chatKey" placeholder="Anthropic API key (sk-ant-…)">
+      <button class="chat-send-btn" onclick="saveChatKey()" style="padding:7px 14px;font-size:.7rem">SAVE</button>
+      <span class="chat-key-saved" id="chatKeySaved" style="display:none">✓ Saved</span>
+    </div>
+    <div class="chat-context-badge" id="chatBadge">Loading context…</div>
+    <div class="chat-suggestions" id="chatSugs">
+      <div class="chat-sug" onclick="useSug(this)">Who is the most hawkish 2026 voter?</div>
+      <div class="chat-sug" onclick="useSug(this)">Write a March FOMC meeting preview</div>
+      <div class="chat-sug" onclick="useSug(this)">Which members have turned more dovish recently?</div>
+      <div class="chat-sug" onclick="useSug(this)">What is the FOMC composite score and what does it signal?</div>
+      <div class="chat-sug" onclick="useSug(this)">Compare Powell vs Bowman tone divergence</div>
+      <div class="chat-sug" onclick="useSug(this)">How aligned is the committee on the rate path?</div>
+      <div class="chat-sug" onclick="useSug(this)">Who dissents most from the consensus?</div>
+      <div class="chat-sug" onclick="useSug(this)">What are the biggest risks to the baseline?</div>
+    </div>
+    <div class="chat-messages" id="chatMsgs"></div>
+    <div class="chat-input-row">
+      <textarea class="chat-input" id="chatInput" placeholder="Ask anything about FOMC tone, member trajectories, rate path, meeting outlook…" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+      <button class="chat-send-btn" id="chatSendBtn" onclick="sendChat()">SEND</button>
+    </div>
+  </div>
+</div>
+
+
+
+</div><!-- .app -->
+
+<script>
+// ═══════════════════════════════════════
+// QUANTITATIVE FRAMEWORK
+// ═══════════════════════════════════════
+const NEUTRAL = 3.0;
+const CURRENT = 3.625;  // midpoint 3.50–3.75%
+const SPREAD  = (CURRENT - NEUTRAL) * 100;  // +62.5bps
+
+// Exact Dec 2025 dot distribution (Wolf Street / Fed)
+// midpoint → count
+const DOT_DIST = [
+  { rate:3.875, count:3, cuts:-1, label:'1 Hike',       desc:'Above-neutral hold — sees inflation risk requiring tighter stance' },
+  { rate:3.625, count:4, cuts:0,  label:'Hold',         desc:'No cuts — sees current rate as appropriate through 2026' },
+  { rate:3.375, count:4, cuts:1,  label:'1 Cut (−25bp)',desc:'Median · modest normalisation toward neutral' },
+  { rate:3.125, count:4, cuts:2,  label:'2 Cuts (−50bp)',desc:'Two cuts — sees policy as moderately above neutral, gradual easing' },
+  { rate:2.875, count:2, cuts:3,  label:'3 Cuts (−75bp)',desc:'Three cuts — sees significant policy restrictiveness relative to neutral' },
+  { rate:2.625, count:1, cuts:4,  label:'4 Cuts (−100bp)',desc:'Four cuts — material accommodation need' },
+  { rate:2.125, count:1, cuts:6,  label:'6 Cuts (−150bp)',desc:'Outlier — sees significant overshoot vs. neutral; likely Miran' },
+];
+
+// ═══════════════════════════════════════
+// MEMBERS + ESTIMATED DOT ASSIGNMENTS
+// Evidence basis for each estimate noted
+// ═══════════════════════════════════════
+// Composite weight tiers
+// 3.0 = Chair (sets narrative, drives policy)
+// 2.0 = Board Governors (permanent voters, institutional voice)
+// 1.5 = Voting Regional Presidents (seat at the table this year)
+// 1.0 = Non-voting Regional Presidents (voice, no vote)
+const MEMBERS = [
+  { id:'powell',   name:'Jerome Powell',    ini:'JP', color:'#7c6af5',
+    role:'Chair · Board of Governors',       voter2026:true,  weight:3.0,
+    sepDot:3.375, conf:4,
+    evidence:'Voted for cut; described rate as "high end of neutral range" post-Dec meeting. Speeches signal data-dependence consistent with 1-cut median.',
+    dissent:null },
+
+  { id:'jefferson',name:'Philip Jefferson', ini:'PJ', color:'#5a9cf5',
+    role:'Vice Chair · Governors',           voter2026:true,  weight:2.0,
+    sepDot:3.375, conf:3,
+    evidence:'Speeches signal "appropriate" stance and "well positioned to wait." Feb 2026 Drexel speech shows concern on labor fragility — could drift toward 2 cuts.',
+    dissent:null },
+
+  { id:'waller',   name:'Chris Waller',     ini:'CW', color:'#e87d3c',
+    role:'Governor · Governors',             voter2026:true,  weight:2.0,
+    sepDot:3.125, conf:4,
+    evidence:'Explicitly called for continued easing. Nov 2025 London speech: "case for continuing rate cuts is strong." Sees policy meaningfully above neutral.',
+    dissent:null },
+
+  { id:'cook',     name:'Lisa Cook',        ini:'LC', color:'#3daa6e',
+    role:'Governor · Governors',             voter2026:true,  weight:2.0,
+    sepDot:3.375, conf:2,
+    evidence:'Limited recent public speeches. Voted for all 2025 cuts. Broadly consistent with Committee median; tone suggests alignment with 1-cut baseline.',
+    dissent:null },
+
+  { id:'barr',     name:'Michael Barr',     ini:'MB', color:'#e86c6c',
+    role:'Governor · Governors',             voter2026:true,  weight:2.0,
+    sepDot:3.375, conf:2,
+    evidence:'Speeches measured and balanced. Voted for all 2025 cuts. Median assignment consistent with centrist tone and limited explicit guidance on pace.',
+    dissent:null },
+
+  { id:'kugler',   name:'Adriana Kugler',   ini:'AK', color:'#e8786a',
+    role:'Governor · Governors',             voter2026:false, weight:2.0,
+    sepDot:3.125, conf:3,
+    evidence:'Nov 2025 speech showed concern about softening for lower-income households. Supported all cuts; speeches lean somewhat dovish relative to median.',
+    dissent:null },
+
+  { id:'miran',    name:'Stephen Miran',    ini:'SM', color:'#f0a830',
+    role:'Governor · Governors',             voter2026:false, weight:2.0,
+    sepDot:2.125, conf:5,
+    evidence:'HARD DISSENT (Dec 2025): voted for 50bp cut. Bondsavvy analysis identifies him as the lone dot at 2.00–2.25% (−150bp / 6 cuts). Strongest dove on committee.',
+    dissent:'dovish' },
+
+  { id:'bowman',   name:'Michelle Bowman',  ini:'MB2',color:'#c46ae0',
+    role:'Vice Chair Supervision',           voter2026:true,  weight:2.0,
+    sepDot:3.125, conf:3,
+    evidence:'Speeches consistently emphasise labor market fragility and looking through tariff inflation. Argued for cutting "more aggressively to neutral." Leans 2-cut.',
+    dissent:null },
+
+  { id:'williams', name:'John Williams',    ini:'JW', color:'#4fb8c8',
+    role:'President · New York Fed',         voter2026:true,  weight:1.5,
+    sepDot:3.375, conf:3,
+    evidence:'NY Fed President is perma-voter, closely aligned with Chair. Speeches balanced; policy described as "moving in the right direction." Median consistent.',
+    dissent:null },
+
+  { id:'musalem',  name:'Alberto Musalem',  ini:'AM', color:'#c47a5a',
+    role:'President · St. Louis Fed',        voter2026:true,  weight:1.5,
+    sepDot:3.625, conf:4,
+    evidence:'Brookings Sep 2025: "limited room for easing further without policy becoming overly accommodative." Sees rate between modestly restrictive and neutral. Hold implied.',
+    dissent:null },
+
+  { id:'schmid',   name:'Jeffrey Schmid',   ini:'JS', color:'#d9547a',
+    role:'President · Kansas City Fed',      voter2026:false, weight:1.0,
+    sepDot:3.875, conf:5,
+    evidence:'HARD DISSENT (Dec 2025): voted to hold. Dec statement: "inflation remains too high... policy not overly restrictive." Sees rate as possibly needing to be higher.',
+    dissent:'hawkish' },
+
+  { id:'goolsbee', name:'Austan Goolsbee',  ini:'AG', color:'#9ac46a',
+    role:'President · Chicago Fed',          voter2026:false, weight:1.0,
+    sepDot:3.625, conf:5,
+    evidence:'HARD DISSENT (Dec 2025): voted to hold. "Uncomfortable front-loading cuts." Inflation progress stalled. Despite prior dovish leans, Dec stance = no 2026 cuts.',
+    dissent:'hawkish' },
+
+  { id:'bostic',   name:'Raphael Bostic',   ini:'RB', color:'#6ab4d9',
+    role:'President Emeritus · Atlanta Fed (ret. Feb 2026)',  voter2026:false, weight:0.5,
+    sepDot:3.375, conf:3,
+    dotBasis:'Patient inflation hawk. Jan 2026 interview: "inflation stuck in high 2s, low 3s — we should wait." Broadly hawkish lean puts him at 3.375% (no cut) to 3.625%. Used median as reference since he was non-voter. Retired Feb 28, 2026.',
+    evidence:'Public baseline for 2025 was "one cut." Nov 2025: "little to suggest price pressures will dissipate before mid- to late 2026." Jan 2026 CNBC: inflation still too high, need to remain somewhat restrictive. Retired February 28, 2026 — Cheryl Venable serving as interim Atlanta Fed president.',
+    dissent:null },
+
+  { id:'daly',     name:'Mary Daly',        ini:'MD', color:'#b06ac4',
+    role:'President · San Francisco Fed',    voter2026:false, weight:1.0,
+    sepDot:3.375, conf:3,
+    evidence:'Supported measured easing. Nov 2025 speech: "gradual approach appropriate." Balanced dual mandate emphasis places her near the 1-cut median.',
+    dissent:null },
+
+  { id:'barkin',   name:'Thomas Barkin',    ini:'TB', color:'#74c47a',
+    role:'President · Richmond Fed',         voter2026:false, weight:1.0,
+    sepDot:3.625, conf:3,
+    evidence:'Consistently cautious on cuts. Speeches emphasise services inflation persistence and wanting "more evidence." Non-voter but publicly hawkish lean.',
+    dissent:null },
+
+  { id:'collins',  name:'Susan Collins',    ini:'SC', color:'#d9a06a',
+    role:'President · Boston Fed',           voter2026:false, weight:1.0,
+    sepDot:3.375, conf:2,
+    evidence:'Patient approach to normalization; wanted clear disinflation evidence. Balanced tone places near median. Rotates off 2026 voters; non-voter.',
+    dissent:null },
+
+  { id:'kashkari', name:'Neel Kashkari',    ini:'NK', color:'#6a7ad9',
+    role:'President · Minneapolis Fed',      voter2026:false, weight:1.0,
+    sepDot:3.125, conf:3,
+    evidence:'Jan 2025 essay: "two cuts in 2025" outlook. Sep speech: "support continued easing." Tone shows balance but marginal dovish lean on labor market.',
+    dissent:null },
+
+  { id:'hammack',  name:'Beth Hammack',     ini:'BH', color:'#78c4b0',
+    role:'President · Cleveland Fed',        voter2026:true,  weight:1.5,
+    sepDot:3.875, conf:4,
+    evidence:'Dec 2025 speech: "prefer policy on slightly more restrictive stance." Sees upside inflation risks. Plus500 analysis: hawkish incoming 2026 voter.',
+    dissent:null },
+
+  { id:'logan',    name:'Lorie Logan',      ini:'LL', color:'#c4a068',
+    role:'President · Dallas Fed',           voter2026:true,  weight:1.5,
+    sepDot:3.875, conf:4,
+    evidence:'May 2025: policy must remain restrictive until inflation clearly at 2%. Services inflation concern. Identified as hawkish 2026 voter by multiple analysts.',
+    dissent:null },
+
+  { id:'harker',   name:'Patrick Harker',   ini:'PH', color:'#8a78c4',
+    role:'President Emeritus · Philadelphia Fed',     voter2026:false, weight:0.2,
+    sepDot:3.375, conf:1,
+    evidence:'Retired mid-2025 when Paulson took over. Historical data retained for reference. Non-voter.',
+    dissent:null },
+  { id:'paulson',  name:'Anna Paulson',     ini:'AP', color:'#d97db0',
+    role:'President · Philadelphia Fed',     voter2026:true,  weight:1.5,
+    sepDot:3.125, conf:3,
+    dotBasis:'Oct 2025 NABE speech: "easing along the lines of the median SEP policy path as appropriate." Jan 2026 ASSA: "modest further adjustments to the funds rate would likely be appropriate later in the year." Views tariff inflation as transitory; describes current policy as "still a little restrictive." Consistent with 2-cut (3.125%) outlook. Dovish lean on labor market — "I\'m more concerned about weakening employment than lingering inflation."',
+    evidence:'New voter 2026. Took office July 2025. First speech Oct 2025: tariffs are transitory price-level shift, policy should look through them and move toward neutral. Described policy as "modestly restrictive." Jan 2026: "cautious optimism" on inflation, sees "waiting for clarity" on labor market. More dovish than Hammack/Logan.',
+    dissent:null },
+];
+
+// Speech corpus
+// ═══════════════════════════════════════
+// CORPUS — loaded dynamically from corpus.json
+// Falls back to empty corpus if not found
+// ═══════════════════════════════════════
+let CORPUS = {};
+
+async function loadCorpus() {
+  // Try to fetch corpus.json from same origin (GitHub Pages)
+  const CORPUS_URL = 'corpus.json';
+  try {
+    const res = await fetch(CORPUS_URL + '?v=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const raw = await res.json();
+
+    // corpus.json from scraper uses member_id keys with array of speeches
+    // Map to same format as old CORPUS: { member_id: [{date,title,venue,text,url,...}] }
+    CORPUS = {};
+    for (const [memberId, speeches] of Object.entries(raw)) {
+      CORPUS[memberId] = speeches.map(sp => ({
+        date:  sp.date  || sp.speech_date || '',
+        title: sp.title || '',
+        venue: sp.venue || sp.source || '',
+        text:  sp.text  || sp.excerpt || sp.full_text || sp.title || '',
+        url:   sp.url   || '',
+        // If already scored by scraper, attach pre-scored data
+        preScored: (sp.score !== undefined) ? {
+          score:     sp.score,
+          stance:    sp.stance    || 0,
+          balance:   sp.balance   || 0,
+          direction: sp.direction || 0,
+          reason:    sp.reason    || '',
+          keywords:  sp.keywords  || [],
+        } : null,
+      }));
+    }
+
+    const count = Object.values(CORPUS).reduce((a,v) => a+v.length, 0);
+    console.log('Corpus loaded from corpus.json:', count, 'speeches');
+
+    // Inject pre-scored speeches into data[] so they don't need re-scoring
+    let preScored = 0;
+    MEMBERS.forEach(m => {
+      (CORPUS[m.id] || []).forEach(sp => {
+        if (sp.preScored) {
+          data[m.id].push({
+            date:      sp.date,
+            title:     sp.title,
+            venue:     sp.venue,
+            url:       sp.url,
+            score:     sp.preScored.score,
+            stance:    sp.preScored.stance,
+            balance:   sp.preScored.balance,
+            direction: sp.preScored.direction,
+            reason:    sp.preScored.reason,
+            keywords:  sp.preScored.keywords,
+          });
+          preScored++;
+        }
+      });
+    });
+    if (preScored > 0) {
+      console.log('Pre-scored speeches loaded:', preScored);
+    }
+
+    return count;
+
+  } catch(e) {
+    console.warn('corpus.json not found or failed to load:', e.message);
+    console.warn('Running with empty corpus — score speeches manually or add corpus.json');
+    CORPUS = {};
+    return 0;
+  }
+}
+let total = 0; // updated after loadCorpus()
+MEMBERS.forEach(m => { data[m.id] = []; });
+
+// ═══════════════════════════════════════
+// SCORING ENGINE (3-component)
+// ═══════════════════════════════════════
+async function scoreAll() {
+  // Recalculate total from current CORPUS (loaded dynamically)
+  total = Object.values(CORPUS).reduce((a,v) => a+v.length, 0);
+  scored = 0;
+  const entries = [];
+  Object.entries(CORPUS).forEach(([id,speeches]) => speeches.forEach(sp => entries.push({id,...sp})));
+  const BATCH = 5;
+  for (let i = 0; i < entries.length; i += BATCH) {
+    await Promise.all(entries.slice(i, i+BATCH).map(scoreOne));
+  }
+}
+
+async function scoreOne(entry) {
+  const m = MEMBERS.find(x => x.id === entry.id);
+  const dotCuts = DOT_DIST.find(d => Math.abs(d.rate - m.sepDot) < 0.1)?.cuts ?? 1;
+
+  const prompt = `You are a quantitative Fed policy analyst. Score this FOMC speech on three components anchored to the December 2025 SEP framework.
+
+FRAMEWORK:
+- Current rate: 3.625% (3.50–3.75%)
+- Long-run neutral: 3.0% (SEP median)
+- Spread above neutral: +62.5bps → "modestly restrictive" by SEP median standard
+- This speaker's estimated 2026 SEP dot: ${m.sepDot}% (${dotCuts > 0 ? dotCuts + ' cut' + (dotCuts>1?'s':'') : dotCuts < 0 ? Math.abs(dotCuts)+' hike(s)' : 'hold'})
+
+SCORE THREE COMPONENTS (-100 to +100, positive=hawkish):
+
+STANCE_SCORE — How does the speaker characterize policy restrictiveness?
+• "Significantly/substantially restrictive" = -50 to -70 (policy far above neutral → many cuts implied)
+• "Moderately restrictive" = -20 to -40
+• "Modestly restrictive" = -10 to -20
+• "Near neutral / appropriate" = 0 to +20 (already calibrated, fewer cuts needed)
+• "Not restrictive / insufficiently tight" = +30 to +70 (hawkish: policy may need to stay high or rise)
+
+BALANCE_SCORE — Where is the primary risk emphasis?
+• Inflation dominates, labor market dismissed = +40 to +75
+• More inflation than labor = +15 to +40
+• Dual mandate balance = -10 to +15
+• More labor market concern = -15 to -40
+• Employment risk dominates, inflation dismissed = -40 to -75
+
+DIRECTION_SCORE — Explicit or implicit rate path signal?
+• Explicit hold or preference to hike = +40 to +75
+• Patience language, data dependent but lean toward hold = +15 to +40
+• Balanced data dependence = -10 to +15
+• Lean toward gradual cuts = -15 to -40
+• Explicit preference for cuts, more aggressive easing = -40 to -75
+
+COMPOSITE = round(0.30 × stance + 0.35 × balance + 0.35 × direction)
+
+Also extract 4 key signal phrases and label each hawk/dove/neutral.
+Write one precise sentence rationale referencing the neutral rate framework (e.g. "Characterizes policy as X relative to neutral, emphasizing Y over Z").
+
+Return ONLY valid JSON — no markdown, no preamble:
+{"stance":int,"balance":int,"direction":int,"composite":int,"reason":"string","keywords":[{"word":"string","type":"hawk|dove|neutral"}]}
+
+SPEECH (${entry.date} · ${entry.venue}):
+${entry.text}`;
+
+  let apiOk = false;
+  for (let attempt = 0; attempt < 3 && !apiOk; attempt++) {
+    try {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 1500 * attempt));
+      const headers = {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      };
+      const apiKey = window.ANTHROPIC_API_KEY || '';
+      if (apiKey) headers['x-api-key'] = apiKey;
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({model:'claude-haiku-4-5-20251001', max_tokens:380, messages:[{role:'user',content:prompt}]})
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(()=>({}));
+        throw new Error(`HTTP ${res.status}: ${errBody?.error?.message || res.statusText}`);
+      }
+      const d = await res.json();
+      const raw = (d.content||[]).map(c=>c.text||'').join('');
+      const r = JSON.parse(raw.replace(/```json|```/g,'').trim());
+      data[entry.id].push({date:entry.date,title:entry.title,venue:entry.venue,score:r.composite,stance:r.stance,balance:r.balance,direction:r.direction,reason:r.reason,keywords:r.keywords||[]});
+      apiOk = true;
+    } catch(e) {
+      if (attempt === 2) {
+        console.error('API failed after 3 attempts:', e.message);
+        document.getElementById('loadStatus').textContent = `⚠ API error: ${e.message}`;
+      }
+    }
+  }
+  if (!apiOk) {
+    const t = entry.text.toLowerCase();
+    let s=0,b=0,dir=0;
+    if (t.includes('significantly restrictive')||t.includes('substantially restrictive')) s=-60;
+    else if (t.includes('moderately restrictive')) s=-30;
+    else if (t.includes('modestly restrictive')) s=-15;
+    else if (t.includes('not restrictive')||t.includes('near neutral')) s=+20;
+    else if (t.includes('insufficiently restrictive')) s=+55;
+    const hW=['inflation too high','above target','price stability','inflation risk'].filter(w=>t.includes(w)).length;
+    const lW=['labor market','employment','jobs','fragile','cooling','weakening'].filter(w=>t.includes(w)).length;
+    b=Math.max(-70,Math.min(70,(hW-lW)*18));
+    if (t.includes('hold')||t.includes('unchanged')||t.includes('patience')) dir=30;
+    else if (t.includes('cut')||t.includes('ease')||t.includes('lower rates')) dir=-30;
+    s=Math.max(-80,Math.min(80,s)); b=Math.max(-80,Math.min(80,b)); dir=Math.max(-80,Math.min(80,dir));
+    data[entry.id].push({date:entry.date,title:entry.title,venue:entry.venue,score:Math.round(.3*s+.35*b+.35*dir),stance:s,balance:b,direction:dir,reason:'Heuristic estimate (API unavailable).',keywords:[]});
+  }
+  scored++;
+  const pct = Math.round(scored/total*100);
+  document.getElementById('progFill').style.width=pct+'%';
+  document.getElementById('loadStatus').textContent=`Scored ${scored} of ${total} speeches…`;
+}
+
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
+function sorted(id){ return (data[id]||[]).slice().sort((a,b)=>new Date(a.date)-new Date(b.date)); }
+function latest(id){ const s=sorted(id); return s[s.length-1]; }
+function prev(id){ const s=sorted(id); return s.length>=2?s[s.length-2]:null; }
+function gc(score){ if(score>25) return '#d9542b'; if(score<-25) return '#2b8fc4'; return '#6b7a94'; }
+function gl(score){ if(score>40) return 'HAWKISH'; if(score>20) return 'LEAN HAWK'; if(score<-40) return 'DOVISH'; if(score<-20) return 'LEAN DOVE'; return 'NEUTRAL'; }
+function dotColor(rate){ if(rate>=3.625) return '#d9542b'; if(rate<=3.0) return '#2b8fc4'; if(rate<=3.125) return '#5a9cf5'; return '#6b7a94'; }
+function cutsLabel(cuts){ if(cuts<0) return `${Math.abs(cuts)} Hike${Math.abs(cuts)>1?'s':''}`; if(cuts===0) return 'Hold'; return `${cuts} Cut${cuts>1?'s':''}`; }
+// Convert 2026 dot to tone score relative to median (3.375%)
+function dotToTone(rate){ return Math.round((rate-3.375)/0.25*15); }
+function alignLabel(toneDiff){
+  const a=Math.abs(toneDiff);
+  if(a<=12) return {cls:'align-tight',txt:'✓ Consistent'};
+  if(toneDiff>0) return {cls:'align-loose-h',txt:'↑ More Hawkish'};
+  return {cls:'align-loose-d',txt:'↓ More Dovish'};
+}
+function confPips(n){ return Array.from({length:5},(_,i)=>`<div class="conf-pip${i<n?' filled':''}"></div>`).join(''); }
+
+// ═══════════════════════════════════════
+// INIT — API KEY GATE
+// ═══════════════════════════════════════
+window.addEventListener('load', () => {
+  // Allow pre-set key via global (e.g. Claude.ai artifact context injects it)
+  if (window.ANTHROPIC_API_KEY) {
+    startWithKey();
+  }
+  // Otherwise show the key entry screen (already visible by default)
+  document.getElementById('apiKeyInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') startWithKey();
+  });
+});
+
+async function startWithKey() {
+  const input = document.getElementById('apiKeyInput');
+  const errEl = document.getElementById('apiErr');
+  const key = (input ? input.value.trim() : '') || window.ANTHROPIC_API_KEY || '';
+
+  if (!key) {
+    if (errEl) errEl.textContent = 'Please enter your Anthropic API key.';
+    return;
+  }
+  if (!key.startsWith('sk-ant-')) {
+    if (errEl) errEl.textContent = 'Key should start with sk-ant- — check and try again.';
+    return;
+  }
+
+  window.ANTHROPIC_API_KEY = key;
+
+  // Load corpus from corpus.json
+  if (errEl) errEl.textContent = 'Loading speech corpus…';
+  const corpusCount = await loadCorpus();
+
+  // Validate key with a minimal test call
+  if (errEl) errEl.textContent = 'Validating key…';
+  try {
+    const testRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'x-api-key': key
+      },
+      body: JSON.stringify({model:'claude-haiku-4-5-20251001', max_tokens:5, messages:[{role:'user',content:'hi'}]})
+    });
+    if (!testRes.ok) {
+      const err = await testRes.json().catch(()=>({}));
+      if (errEl) errEl.textContent = `Key rejected: ${err?.error?.message || testRes.statusText}`;
+      return;
+    }
+  } catch(e) {
+    if (errEl) errEl.textContent = `Network error: ${e.message}`;
+    return;
+  }
+
+  // Key valid — switch screens
+  document.getElementById('apiScreen').style.display = 'none';
+  document.getElementById('loadOverlay').style.display = 'flex';
+
+  await scoreAll();
+
+  document.getElementById('loadOverlay').style.display = 'none';
+  document.getElementById('statusTxt').textContent = `${total} speeches analyzed`;
+  updateCompositeBar();
+  showOverview();
+  renderDotMap();
+  renderConsensus();
+  renderKeyQuotes();
+  renderMarketSignals();
+  addRescoreButton();
+}
+
+function updateCompositeBar() {
+  const series = computeComposite();
+  if (!series.length) return;
+  const latest = series[series.length - 1];
+  const score = latest.score;
+  const color = gc(score);
+  const label = gl(score);
+
+  const valEl = document.getElementById('fbCompositeVal');
+  const subEl = document.getElementById('fbCompositeSub');
+  const cellEl = document.getElementById('fbCompositeCell');
+
+  if (valEl) {
+    valEl.textContent = (score > 0 ? '+' : '') + score;
+    valEl.style.color = color;
+  }
+  if (subEl) {
+    const d = new Date(latest.date);
+    const dateStr = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+    subEl.textContent = `${label} · as of ${dateStr}`;
+    subEl.style.color = color + 'bb';
+  }
+  if (cellEl) {
+    // Pulse the cell briefly to draw attention
+    cellEl.style.transition = 'background 0.4s';
+    cellEl.style.background = color + '18';
+    setTimeout(() => { cellEl.style.background = 'var(--s2)'; }, 1200);
+  }
+}
+
+function addRescoreButton() {
+  if (document.getElementById('rescoreBtn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'rescoreBtn';
+  btn.textContent = '↺ Re-score';
+  btn.title = 'Re-run AI scoring for all speeches';
+  btn.style.cssText = 'position:fixed;bottom:18px;right:18px;padding:7px 16px;background:var(--card);border:1px solid var(--border);border-radius:5px;color:var(--dim);font-family:"IBM Plex Mono",monospace;font-size:.65rem;letter-spacing:.06em;cursor:pointer;z-index:100;text-transform:uppercase';
+  btn.onmouseenter = () => btn.style.color = 'var(--fg)';
+  btn.onmouseleave = () => btn.style.color = 'var(--dim)';
+  btn.onclick = async () => {
+    if (!window.ANTHROPIC_API_KEY) { alert('No API key set. Reload the page to enter one.'); return; }
+    // Reset scores
+    Object.keys(data).forEach(k => data[k] = []);
+    scored = 0;
+    document.getElementById('progFill').style.width = '0%';
+    document.getElementById('loadStatus').textContent = 'Re-scoring…';
+    document.getElementById('loadOverlay').style.display = 'flex';
+    await scoreAll();
+    document.getElementById('loadOverlay').style.display = 'none';
+    updateCompositeBar();
+    showOverview();
+    renderDotMap();
+    renderConsensus();
+    renderKeyQuotes();
+    renderMarketSignals();
+  };
+  document.body.appendChild(btn);
+}
+
+function switchTab(tab, el) {
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+function setFilter(f,el){ filter=f; document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); renderSidebar(); }
+
+// ═══════════════════════════════════════
+// RENDER — MEMBER VIEW
+// ═══════════════════════════════════════
+function renderAll(){ renderSidebar(); if(document.getElementById('overviewGrid')) renderOverview(); if(selected){ renderHero(); renderMainCol(); renderTimeline(); } }
+
+function renderSidebar(){
+  const shown = MEMBERS.filter(m=>{
+    const l=latest(m.id); const p=prev(m.id);
+    const shift=l&&p&&Math.abs(l.score-p.score)>=15;
+    if(filter==='hawk') return l&&l.score>20;
+    if(filter==='dove') return l&&l.score<-20;
+    if(filter==='shift') return shift;
+    return true;
+  });
+  document.getElementById('memberCountBadge').textContent=shown.length+' shown';
+
+  function memberItem(m){
+    const l=latest(m.id); const p=prev(m.id);
+    const shift=l&&p&&Math.abs(l.score-p.score)>=15;
+    let badge='';
+    if(!l) badge=`<span class="mi-badge bn">—</span>`;
+    else if(shift) badge=l.score>p.score?`<span class="mi-badge bh">↗ HAWK</span>`:`<span class="mi-badge bd">↘ DOVE</span>`;
+    else { const cls=l.score>20?'bh':l.score<-20?'bd':'bn'; badge=`<span class="mi-badge ${cls}">${l.score>0?'+':''}${l.score}</span>`; }
+    const wLabel=m.weight>=3?'Chair':m.weight>=2?'Governor':m.weight>=1.5?'Voter':m.weight>=1?'Non-V':'Hist';
+    return `<div class="member-item${selected===m.id?' active':''}" onclick="selectMember('${m.id}')">
+      <div class="mi-avatar" style="background:${m.color}22;border-color:${m.color}55;color:${m.color}">${m.ini}</div>
+      <div class="mi-info"><div class="mi-name">${m.name}<span style="color:var(--dim2);font-size:.5rem;margin-left:3px">${wLabel}</span></div><div class="mi-sub">${sorted(m.id).length} speeches · ${m.sepDot}% dot</div></div>
+      ${badge}</div>`;
+  }
+
+  function sectionHdr(label,color){
+    return `<div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:.09em;text-transform:uppercase;color:${color};padding:8px 12px 3px;margin-top:4px">${label}</div>`;
+  }
+
+  const voters=shown.filter(m=>m.voter2026&&m.id!=='harker');
+  const nonVoters=shown.filter(m=>!m.voter2026&&m.weight>=0.5);
+  const retired=shown.filter(m=>m.weight<0.5);
+
+  let html='';
+  if(voters.length) html+=sectionHdr('▶ 2026 Voters','var(--accent)')+voters.map(memberItem).join('');
+  if(nonVoters.length) html+=sectionHdr('◌ Non-Voters','var(--dim)')+nonVoters.map(memberItem).join('');
+  if(retired.length) html+=sectionHdr('† Retired','var(--dim2)')+retired.map(memberItem).join('');
+
+  document.getElementById('memberList').innerHTML=html||'<div style="padding:20px;color:var(--dim);font-size:.78rem;text-align:center">No members match filter</div>';
+}
+
+function renderOverview(){
+  document.getElementById('overviewGrid').innerHTML=MEMBERS.map(m=>{
+    const l=latest(m.id); const color=l?gc(l.score):'var(--neut)';
+    const pct=l?((l.score+100)/200*100).toFixed(0):50;
+    const dt=dotToTone(m.sepDot); const dtC=gc(dt);
+    return `<div class="ov-card${selected===m.id?' active':''}" onclick="selectMember('${m.id}')">
+      <div class="ov-name">${m.name}</div>
+      <div class="ov-role">${m.role.split('·')[0].trim()}</div>
+      <div class="ov-score" style="color:${color}">${l?(l.score>0?'+':'')+l.score:'—'}</div>
+      <div class="ov-stance" style="color:${color}">${l?gl(l.score):'—'}</div>
+      <div class="ov-sep" style="color:${dtC}">2026 dot: ${m.sepDot}% · ${cutsLabel(DOT_DIST.find(d=>Math.abs(d.rate-m.sepDot)<0.1)?.cuts??1)}</div>
+      <div class="ov-bar"><div class="ov-fill" style="width:${pct}%;background:${color}"></div></div></div>`;
+  }).join('');
+}
+
+function renderHero(){
+  const m=MEMBERS.find(x=>x.id===selected);
+  const l=latest(m.id); const p=prev(m.id);
+  const ss=sorted(m.id);
+  const avg=ss.length?Math.round(ss.reduce((a,v)=>a+v.score,0)/ss.length):0;
+  const delta=l&&p?l.score-p.score:null;
+  const sepScore=dotToTone(m.sepDot);
+  const color=l?gc(l.score):'var(--neut)';
+  let shiftTag='';
+  if(delta!==null){
+    if(delta>8) shiftTag=`<div class="shift-tag" style="border-color:rgba(217,84,43,.3);color:var(--hawk)">↗ +${delta.toFixed(0)}pts hawkish shift</div>`;
+    else if(delta<-8) shiftTag=`<div class="shift-tag" style="border-color:rgba(43,143,196,.3);color:var(--dove)">↘ ${Math.abs(delta).toFixed(0)}pts dovish shift</div>`;
+    else shiftTag=`<div class="shift-tag" style="border-color:var(--border);color:var(--neut)">→ Stable tone</div>`;
+  }
+  document.getElementById('rpHero').innerHTML=`<div class="member-hero">
+    <div class="hero-av" style="background:${m.color}20;border-color:${m.color}50;color:${m.color}">${m.ini}</div>
+    <div class="hero-info"><h2>${m.name}</h2><p>${m.role}${m.voter2026?' · 2026 VOTER':' · 2026 non-voter'}</p></div>
+    <div class="hero-kpis">
+      ${l?`<div class="kpi"><div class="kpi-v" style="color:${color}">${l.score>0?'+':''}${l.score}</div><div class="kpi-l">Latest Composite</div></div>`:''}
+      <div class="kpi"><div class="kpi-v" style="color:${gc(avg)}">${avg>0?'+':''}${avg}</div><div class="kpi-l">Avg Score</div></div>
+      <div class="kpi"><div class="kpi-v" style="color:${dotColor(m.sepDot)}">${m.sepDot}%</div><div class="kpi-l">Est. 2026 Dot</div></div>
+      <div class="kpi"><div class="kpi-v">${ss.length}</div><div class="kpi-l">Speeches</div></div>
+      ${shiftTag}
+    </div></div>`;
+}
+
+function renderMainCol(){
+  const m=MEMBERS.find(x=>x.id===selected);
+  const ss=sorted(m.id);
+  const l=ss[ss.length-1];
+  const sepScore=dotToTone(m.sepDot);
+  const dotTier=DOT_DIST.find(d=>Math.abs(d.rate-m.sepDot)<0.1);
+  const alignDiff=l?l.score-sepScore:0;
+  const {cls:alignCls,txt:alignTxt}=alignLabel(alignDiff);
+
+  const dotsHtml=DOT_DIST.map(d=>{
+    const isThis=Math.abs(d.rate-m.sepDot)<0.1;
+    const dc=dotColor(d.rate);
+    const dots=Array.from({length:d.count},(_,i)=>{
+      const isMatchDot=isThis&&i===0;
+      return `<div style="width:${isMatchDot?13:10}px;height:${isMatchDot?13:10}px;border-radius:50%;border:${isMatchDot?'2px solid '+m.color:'1.5px solid '+dc};background:${isMatchDot?m.color+'30':'transparent'};display:inline-block;margin-right:3px;vertical-align:middle${isMatchDot?';box-shadow:0 0 6px '+m.color+'60':''}" title="${isMatchDot?m.name+' estimated dot':'Anonymous'}"></div>`;
+    }).join('');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:${dc};width:46px;flex-shrink:0">${d.rate.toFixed(3)}%</div>
+      <div style="flex:1">${dots}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:${dc};width:80px;text-align:right">${d.label}${d.rate===3.375?'<br><span style="color:var(--accent)">◀ MEDIAN</span>':''}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('mainCol').innerHTML=`
+    <button onclick="showOverview()" style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--dim);background:none;border:none;cursor:pointer;letter-spacing:.05em;text-align:left;padding:0;margin-bottom:2px;text-transform:uppercase">← All Members</button>
+    <div class="panel">
+      <div class="panel-head"><span>Tone Trajectory — Composite Score</span><span style="color:var(--dim)">Dashed = SEP dot implied score</span></div>
+      <div class="panel-body"><div class="chart-inner"><canvas id="toneChart"></canvas></div></div>
+    </div>
+    ${l?`<div class="panel">
+      <div class="panel-head"><span>Latest Score Anatomy — ${l.title}</span><span style="color:var(--dim)">${new Date(l.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span></div>
+      <div class="panel-body">
+        <div style="font-size:.72rem;color:var(--dim);font-style:italic;margin-bottom:12px;line-height:1.6">${l.reason}</div>
+        <div class="anatomy-grid">
+          <div class="ac"><div class="ac-lbl">Stance vs. Neutral</div><div class="ac-val" style="color:${gc(l.stance)}">${l.stance>0?'+':''}${l.stance}</div><div class="ac-sub">${l.stance>20?'Sees policy near appropriate — hawkish':l.stance<-20?'Sees policy significantly restrictive — dovish':'Modestly restrictive — near neutral read'}</div><div class="ac-bar"><div class="ac-fill" style="width:${((l.stance+100)/200*100).toFixed(0)}%;background:${gc(l.stance)}"></div></div></div>
+          <div class="ac"><div class="ac-lbl">Inflation vs. Labor Focus</div><div class="ac-val" style="color:${gc(l.balance)}">${l.balance>0?'+':''}${l.balance}</div><div class="ac-sub">${l.balance>20?'Inflation risk dominates — hawkish':l.balance<-20?'Labor market concern dominates — dovish':'Balanced dual mandate emphasis'}</div><div class="ac-bar"><div class="ac-fill" style="width:${((l.balance+100)/200*100).toFixed(0)}%;background:${gc(l.balance)}"></div></div></div>
+          <div class="ac"><div class="ac-lbl">Rate Direction Signal</div><div class="ac-val" style="color:${gc(l.direction)}">${l.direction>0?'+':''}${l.direction}</div><div class="ac-sub">${l.direction>20?'Hold / hike preference — hawkish':l.direction<-20?'Cut preference signalled — dovish':'Data-dependent, no clear lean'}</div><div class="ac-bar"><div class="ac-fill" style="width:${((l.direction+100)/200*100).toFixed(0)}%;background:${gc(l.direction)}"></div></div></div>
+        </div>
+      </div>
+    </div>`:''}
+    <div class="panel">
+      <div class="panel-head"><span>Dec 2025 SEP — Estimated 2026 Dot Position</span><span style="color:${dotColor(m.sepDot)}">${m.sepDot}% · ${dotTier?dotTier.label:'—'} · Conf: ${'●'.repeat(m.conf)}${'○'.repeat(5-m.conf)}</span></div>
+      <div class="panel-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="ac"><div class="ac-lbl">Estimated 2026 Dot</div><div class="ac-val" style="color:${dotColor(m.sepDot)}">${m.sepDot}%</div><div class="ac-sub">${((m.sepDot-NEUTRAL)*100).toFixed(0)}bps vs. neutral (${NEUTRAL}%) · ${cutsLabel(dotTier?.cuts??1)} implied</div></div>
+          <div class="ac"><div class="ac-lbl">Speech Tone vs. Dot</div><div class="ac-val" style="color:${gc(alignDiff)}">${alignDiff>0?'+':''}${alignDiff}</div><div class="ac-sub"><span class="${alignCls}">${alignTxt}</span> · Speech${alignDiff>12?' more hawkish':alignDiff<-12?' more dovish':' consistent'} than SEP position</div></div>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim);letter-spacing:.07em;margin-bottom:8px;text-transform:uppercase">${m.name.split(' ')[1]?.toUpperCase()} Highlighted in Full 2026 Distribution</div>
+        ${dotsHtml}
+        <div style="margin-top:10px;padding:8px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);font-size:.68rem;line-height:1.6;color:var(--dim)">
+          <strong style="color:var(--text);font-size:.65rem;font-family:'IBM Plex Mono',monospace;text-transform:uppercase">Evidence basis:</strong><br>${m.evidence}
+          ${m.dissent?`<br><span style="color:${m.dissent==='hawkish'?'var(--hawk)':'var(--dove)'}">⚡ HARD DISSENT (Dec 2025): ${m.dissent==='hawkish'?'Voted to HOLD — sees current rate as appropriate or insufficient':'Voted for 50bp CUT — sees policy as far above neutral'}</span>`:''}
+        </div>
+      </div>
+    </div>`;
+
+  // init + populate chart
+  initChart();
+  setTimeout(()=>{ updateChart(m,ss,sepScore); },50);
+}
+
+function initChart(){
+  if(chart){ chart.destroy(); chart=null; }
+  Chart.register({id:'zeroLine',afterDraw(c){
+    const {ctx,chartArea:{left,right},scales:{y}}=c;
+    const yZ=y.getPixelForValue(0);
+    ctx.save();ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(255,255,255,.07)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(left,yZ);ctx.lineTo(right,yZ);ctx.stroke();ctx.restore();
+  }});
+  const el=document.getElementById('toneChart'); if(!el) return;
+  chart=new Chart(el.getContext('2d'),{
+    type:'line',
+    data:{labels:[],datasets:[]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:400},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#161b24',borderColor:'#2a3448',borderWidth:1,titleColor:'#cdd5e0',bodyColor:'#5a6880',titleFont:{family:'IBM Plex Mono',size:10},
+        callbacks:{title:i=>i[0].label,label:i=>`Composite: ${i.raw>0?'+':''}${i.raw} (${gl(i.raw)})`,
+          afterLabel:i=>{const sp=sorted(selected)[i.dataIndex];if(!sp)return'';return[`Stance:${sp.stance>0?'+':''}${sp.stance}  Balance:${sp.balance>0?'+':''}${sp.balance}  Dir:${sp.direction>0?'+':''}${sp.direction}`];}}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#3d4a5e',font:{family:'IBM Plex Mono',size:9}}},
+        y:{min:-100,max:100,grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#3d4a5e',font:{family:'IBM Plex Mono',size:9},callback:v=>v===0?'NEUTRAL':v>0?`+${v}▲`:`${v}▼`}}}}});
+}
+
+function updateChart(m,ss,sepScore){
+  if(!chart||!document.getElementById('toneChart')) return;
+  const ctx=document.getElementById('toneChart').getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,0,200);
+  grad.addColorStop(0,'rgba(217,84,43,.15)');grad.addColorStop(0.45,'rgba(107,122,148,.03)');grad.addColorStop(1,'rgba(43,143,196,.15)');
+  const scores=ss.map(x=>x.score);
+  const ptColors=scores.map((s,i)=>i===scores.length-1?'#e8b84b':gc(s));
+  chart.data.labels=ss.map(x=>new Date(x.date).toLocaleDateString('en-US',{month:'short',year:'2-digit'}));
+  chart.data.datasets=[
+    {data:scores,borderColor:'#e8b84b',borderWidth:2,backgroundColor:grad,fill:true,pointBackgroundColor:ptColors,pointBorderColor:ptColors,pointRadius:scores.map((_,i)=>i===scores.length-1?7:5),pointHoverRadius:8,tension:0.35},
+    {data:ss.map(()=>sepScore),borderColor:m.color+'70',borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false,tension:0}
+  ];
+  chart.update();
+}
+
+function renderTimeline(){
+  const m=MEMBERS.find(x=>x.id===selected);
+  const ss=sorted(m.id).reverse();
+  if(!ss.length){document.getElementById('timeline').innerHTML='<div style="padding:30px 14px;text-align:center;color:var(--dim);font-size:.8rem">No speeches available</div>';return;}
+  document.getElementById('timeline').innerHTML=ss.map((sp,i)=>{
+    const pSp=ss[i+1]; const delta=pSp?sp.score-pSp.score:null;
+    const color=gc(sp.score); const bg=sp.score>25?'rgba(217,84,43,.13)':sp.score<-25?'rgba(43,143,196,.13)':'rgba(107,122,148,.08)';
+    let dHtml='';
+    if(delta!==null){if(delta>8)dHtml=`<span class="delta dth">↗+${delta.toFixed(0)}</span>`;else if(delta<-8)dHtml=`<span class="delta dtd">↘${delta.toFixed(0)}</span>`;else dHtml=`<span class="delta dtn">→</span>`;}
+    const kwHtml=(sp.keywords||[]).map(k=>`<span class="kw ${k.type==='hawk'?'kwh':k.type==='dove'?'kwd':'kwn'}">${k.word}</span>`).join('');
+    return `<div class="tl-card">
+      <div class="tl-top">
+        <div class="tl-circle-wrap">
+          <div class="tl-circle" style="color:${color};background:${bg};border-color:${color}40">${sp.score>0?'+':''}${sp.score}</div>
+          <div class="tl-cls" style="color:${color};font-size:.5rem">${gl(sp.score)}</div>
+        </div>
+        <div class="tl-meta">
+          <div class="tl-title">${sp.title}${i===0?'<span class="tag-latest">LATEST</span>':''} ${dHtml}</div>
+          <div class="tl-date">${new Date(sp.date).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}${sp.venue?' · '+sp.venue:''}</div>
+          <div class="sc-breakdown">
+            <div class="sc-row"><span class="sc-lbl">STANCE</span><span class="sc-val" style="color:${gc(sp.stance)}">${sp.stance>0?'+':''}${sp.stance}</span></div>
+            <div class="sc-row"><span class="sc-lbl">BALANCE</span><span class="sc-val" style="color:${gc(sp.balance)}">${sp.balance>0?'+':''}${sp.balance}</span></div>
+            <div class="sc-row"><span class="sc-lbl">DIRECTION</span><span class="sc-val" style="color:${gc(sp.direction)}">${sp.direction>0?'+':''}${sp.direction}</span></div>
+          </div>
+          ${sp.reason?`<div class="tl-reason">${sp.reason}</div>`:''}
+          ${kwHtml?`<div class="tl-kws">${kwHtml}</div>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectMember(id){
+  selected=id;
+  document.getElementById('mainCol').innerHTML='<div style="color:var(--dim);padding:20px;font-size:.82rem">Loading…</div>';
+  renderAll();
+}
+
+function computeComposite(){
+  // Build a unified time series of FOMC composite tone
+  // At each speech date, compute weighted avg of latest available scores per member
+  const allDates=[];
+  Object.values(data).forEach(arr=>arr.forEach(sp=>{ if(!allDates.includes(sp.date)) allDates.push(sp.date); }));
+  allDates.sort();
+
+  const series=[];
+  for(const d of allDates){
+    let num=0,den=0;
+    MEMBERS.forEach(m=>{
+      if(m.id==='harker') return; // exclude retired
+      const scored=data[m.id]||[];
+      const relevant=scored.filter(s=>s.date<=d);
+      if(!relevant.length) return;
+      const latest=relevant[relevant.length-1];
+      num+=latest.score*m.weight;
+      den+=m.weight;
+    });
+    if(den===0) continue;
+    series.push({date:d,score:Math.round(num/den)});
+  }
+  // Deduplicate by date keeping last
+  const map={};
+  series.forEach(s=>{ map[s.date]=s; });
+  return Object.values(map).sort((a,b)=>a.date<b.date?-1:1);
+}
+
+function renderCompositePanel(){
+  const series=computeComposite();
+  if(!series.length) return '';
+  const latest=series[series.length-1];
+  const prev=series.length>1?series[series.length-2]:null;
+  const delta=prev?latest.score-prev.score:0;
+  const lc=gc(latest.score);
+  const trend=delta>3?'↑ Hawkish drift':delta<-3?'↓ Dovish drift':'→ Stable';
+  const trendColor=delta>3?'var(--hawk)':delta<-3?'var(--dove)':'var(--dim)';
+
+  // Weight breakdown for legend
+  const weightedGroups=[
+    {label:'Chair',ids:['powell'],tier:'3×'},
+    {label:'Board Governors',ids:['jefferson','waller','cook','barr','bowman','kugler','miran'],tier:'2×'},
+    {label:'Voting Regionals',ids:MEMBERS.filter(m=>m.voter2026&&m.weight===1.5).map(m=>m.id),tier:'1.5×'},
+    {label:'Non-voting Regionals',ids:MEMBERS.filter(m=>!m.voter2026&&m.weight===1.0).map(m=>m.id),tier:'1×'},
+  ];
+
+  return `<div class="panel" style="margin-bottom:14px">
+    <div class="panel-head">
+      <span>FOMC Composite Tone Index</span>
+      <span style="color:${lc};font-family:'IBM Plex Mono',monospace;font-size:.75rem">${latest.score>0?'+':''}${latest.score} · ${gl(latest.score)}</span>
+    </div>
+    <div class="panel-body">
+      <div style="display:flex;gap:14px;margin-bottom:14px;flex-wrap:wrap">
+        <div class="kpi"><div class="kpi-v" style="color:${lc}">${latest.score>0?'+':''}${latest.score}</div><div class="kpi-l">Composite Score</div></div>
+        <div class="kpi"><div class="kpi-v" style="color:${trendColor}">${trend}</div><div class="kpi-l">vs. Prior Speech</div></div>
+        <div class="kpi"><div class="kpi-v" style="color:var(--dim)">${series.length}</div><div class="kpi-l">Data Points</div></div>
+        <div class="kpi"><div class="kpi-v" style="color:var(--dim)">${new Date(latest.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div><div class="kpi-l">Last Updated</div></div>
+      </div>
+      <div style="position:relative;height:130px;margin-bottom:10px"><canvas id="compositeChart"></canvas></div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.56rem;color:var(--dim);letter-spacing:.05em;margin-bottom:6px;text-transform:uppercase">Weight Hierarchy — contribution to composite</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${weightedGroups.map(g=>`<div style="display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--border);padding:3px 7px;border-radius:4px">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--accent)">${g.tier}</span>
+          <span style="font-size:.62rem;color:var(--dim)">${g.label}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+let compositeChart=null;
+function initCompositeChart(series){
+  const el=document.getElementById('compositeChart');
+  if(!el) return;
+  if(compositeChart){ compositeChart.destroy(); compositeChart=null; }
+  const scores=series.map(s=>s.score);
+  const ctx=el.getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,0,130);
+  grad.addColorStop(0,'rgba(217,84,43,.18)');
+  grad.addColorStop(0.5,'rgba(107,122,148,.03)');
+  grad.addColorStop(1,'rgba(43,143,196,.18)');
+  const ptColors=scores.map(gc);
+  compositeChart=new Chart(el.getContext('2d'),{
+    type:'line',
+    data:{
+      labels:series.map(s=>new Date(s.date).toLocaleDateString('en-US',{month:'short',year:'2-digit'})),
+      datasets:[{
+        data:scores,
+        borderColor:'#e8b84b',borderWidth:2.5,
+        backgroundColor:grad,fill:true,
+        pointBackgroundColor:ptColors,pointBorderColor:ptColors,
+        pointRadius:scores.map((_,i)=>i===scores.length-1?7:4),
+        pointHoverRadius:8,tension:0.4,
+      },{
+        data:scores.map(()=>0),
+        borderColor:'rgba(255,255,255,.07)',borderWidth:1,borderDash:[4,4],
+        pointRadius:0,fill:false
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:600},
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'#161b24',borderColor:'#2a3448',borderWidth:1,
+        titleColor:'#cdd5e0',bodyColor:'#5a6880',
+        titleFont:{family:'IBM Plex Mono',size:9},
+        callbacks:{title:i=>i[0].label,label:i=>`FOMC Composite: ${i.raw>0?'+':''}${i.raw} (${gl(i.raw)})`}
+      }},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,.02)'},ticks:{color:'#3d4a5e',font:{family:'IBM Plex Mono',size:8}}},
+        y:{min:-60,max:60,grid:{color:'rgba(255,255,255,.02)'},
+          ticks:{color:'#3d4a5e',font:{family:'IBM Plex Mono',size:8},
+            callback:v=>v===0?'NEUTRAL':v>0?`+${v}▲`:`${v}▼`}}
+      }
+    }
+  });
+}
+
+function showOverview(){
+  selected=null; chart=null; compositeChart=null;
+
+  // Group members for display
+  const govVoters=MEMBERS.filter(m=>['powell','jefferson','waller','cook','barr','bowman'].includes(m.id));
+  const govNonVoter=MEMBERS.filter(m=>['kugler','miran'].includes(m.id));
+  const nyFed=MEMBERS.filter(m=>m.id==='williams');
+  const bankVoters=MEMBERS.filter(m=>m.voter2026&&m.weight===1.5);
+  const bankNonVoters=MEMBERS.filter(m=>!m.voter2026&&m.weight===1.0);
+  const retired=MEMBERS.filter(m=>m.weight<0.5);
+
+  function memberCard(m){
+    const l=latest(m.id);
+    const sc=l?l.score:null;
+    const col=sc!==null?gc(sc):'var(--dim2)';
+    const bg=sc!==null?(sc>25?'rgba(217,84,43,.10)':sc<-25?'rgba(43,143,196,.10)':'rgba(107,122,148,.06)'):'var(--surface)';
+    return `<div class="ov-card" onclick="selectMember('${m.id}')" style="cursor:pointer;background:${bg};border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;transition:border .15s" onmouseover="this.style.borderColor='${m.color}60'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="width:34px;height:34px;border-radius:50%;background:${m.color}20;border:1.5px solid ${m.color}60;color:${m.color};font-family:'IBM Plex Mono',monospace;font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${m.ini}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.78rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}${m.voter2026?'<span style="color:var(--accent);font-size:.55rem;margin-left:4px">★VOTER</span>':''}</div>
+        <div style="font-size:.6rem;color:var(--dim);margin-top:1px">${m.role.split('·').slice(-1)[0].trim()} · ${m.weight}×</div>
+        ${m.dissent?`<div style="font-size:.58rem;color:${m.dissent==='hawkish'?'var(--hawk)':'var(--dove)'}">⚡ ${m.dissent} dissent</div>`:''}
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.9rem;font-weight:700;color:${col}">${sc!==null?(sc>0?'+':'')+sc:'—'}</div>
+        <div style="font-size:.55rem;color:${col};margin-top:1px">${sc!==null?gl(sc):'no data'}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim2);margin-top:2px">${m.sepDot}% dot</div>
+      </div>
+    </div>`;
+  }
+
+  function groupSection(title,subtitle,members,accentColor){
+    if(!members.length) return '';
+    return `<div style="margin-bottom:16px">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:7px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:${accentColor}">${title}</div>
+        <div style="font-size:.58rem;color:var(--dim2)">${subtitle}</div>
+      </div>
+      <div class="ov-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${members.map(memberCard).join('')}</div>
+    </div>`;
+  }
+
+  document.getElementById('mainCol').innerHTML=`
+    <div id="overviewSection">
+      ${renderCompositePanel()}
+      ${groupSection('Board of Governors — Voters','Always vote · highest influence (2.0–5.0×)',[...govVoters,...nyFed],'var(--accent)')}
+      ${groupSection('Board of Governors — Non-Voters','Governors without 2026 rotation vote (1.8×)',govNonVoter,'var(--dove)')}
+      ${groupSection('Reserve Bank Presidents — 2026 Voters','Rotating voters · full seat at policy table (2.5×)',bankVoters,'#e8b84b')}
+      ${groupSection('Reserve Bank Presidents — Non-Voters','Advisory voice, no 2026 vote (1.0×)',bankNonVoters,'var(--dim)')}
+      ${retired.length?groupSection('Retired / Historical','Retained for historical reference (0.2×)',retired,'var(--dim2)'):''}
+    </div>`;
+  document.getElementById('rpHero').innerHTML='<div style="color:var(--dim);font-size:.82rem;text-align:center;padding:8px 0">Select a member to view their quantitative tone profile</div>';
+  document.getElementById('timeline').innerHTML='<div style="padding:36px 14px;text-align:center;color:var(--dim);font-size:.8rem">Select a member</div>';
+  renderSidebar();
+  // Init composite chart after DOM ready
+  setTimeout(()=>{ const cs=computeComposite(); initCompositeChart(cs); },80);
+}
+
+// ═══════════════════════════════════════
+// RENDER — DOT MAP TAB
+// ═══════════════════════════════════════
+function renderDotMap(){
+  // Distribution bar
+  const barHtml=DOT_DIST.map(d=>{
+    const dc=dotColor(d.rate);
+    return `<div style="background:var(--surface);padding:8px 4px;text-align:center">
+      <div style="font-family:'DM Serif Display',serif;font-size:1.1rem;color:${dc}">${d.count}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:${dc};margin-top:1px">${d.rate.toFixed(2)}%</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;color:var(--dim2);margin-top:1px">${d.cuts<0?Math.abs(d.cuts)+' hike':d.cuts===0?'hold':d.cuts+' cut'+( d.cuts>1?'s':'')}</div>
+      ${d.rate===3.375?'<div style="color:var(--accent);font-size:.52rem;font-family:\'IBM Plex Mono\',monospace;margin-top:1px">MEDIAN</div>':''}
+    </div>`;
+  }).join('');
+  document.getElementById('distBar').innerHTML=barHtml;
+
+  // Dot tier cards
+  const tierHtml=DOT_DIST.map(d=>{
+    const dc=dotColor(d.rate);
+    const tierMembers=MEMBERS.filter(m=>Math.abs(m.sepDot-d.rate)<0.1);
+    const anonCount=d.count-tierMembers.length;
+
+    const memberRows=tierMembers.map(m=>{
+      const l=latest(m.id);
+      const toneScore=l?l.score:null;
+      const sepImplied=dotToTone(m.sepDot);
+      const diff=toneScore!==null?toneScore-sepImplied:0;
+      const {cls:aCls,txt:aTxt}=alignLabel(diff);
+      return `<div class="dt-member-row" onclick="selectMember('${m.id}');switchTab('members',document.querySelectorAll('.ntab')[0])" style="cursor:pointer">
+        <div class="dt-av" style="background:${m.color}20;border-color:${m.color}55;color:${m.color}">${m.ini}</div>
+        <div class="dt-minfo">
+          <div class="dt-mname">${m.name}${m.voter2026?'<span class="voter-star">★</span>':''}</div>
+          <div class="dt-mrole">${m.role}${m.dissent?`<span style="color:${m.dissent==='hawkish'?'var(--hawk)':'var(--dove)'}"> · ⚡ ${m.dissent.toUpperCase()} DISSENT`:''}${m.conf===5?' · HIGH CONF':m.conf>=4?' · GOOD CONF':''}</span></div>
+          <div class="confidence-bar"><span class="conf-label">CONF</span><div class="conf-pips">${confPips(m.conf)}</div></div>
+        </div>
+        <div class="dt-right">
+          ${toneScore!==null?`<div class="dt-tone" style="color:${gc(toneScore)}">${toneScore>0?'+':''}${toneScore} tone</div>`:'<div class="dt-tone" style="color:var(--dim2)">—</div>'}
+          <div class="dt-align"><span class="${aCls}">${aTxt}</span></div>
+        </div>
+      </div>
+      <div class="dt-evidence">${m.evidence}</div>`;
+    }).join('');
+
+    const anonRows=Array.from({length:Math.max(0,anonCount)},()=>`<div class="dt-anon"><div class="anon-dot">?</div><div class="anon-text">Anonymous participant — identity not determinable from public record</div></div>`).join('');
+
+    const cutsLabel2=d.cuts<0?`${Math.abs(d.cuts)} Rate Hike${Math.abs(d.cuts)>1?'s':''}`:d.cuts===0?'Hold — No 2026 Cuts':`${d.cuts} Rate Cut${d.cuts>1?'s':''} of 25bps`;
+
+    return `<div class="dot-tier">
+      <div class="dt-head">
+        <div>
+          <div class="dt-rate" style="color:${dc}">${d.rate.toFixed(3)}%</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim);margin-top:1px;text-transform:uppercase">${((d.rate-NEUTRAL)*100).toFixed(0)}bps vs. neutral${d.rate===3.375?' · MEDIAN':''}</div>
+        </div>
+        <div class="dt-info">
+          <div class="dt-label">${cutsLabel2}</div>
+          <div class="dt-cuts" style="color:${dc}">${d.count} participant${d.count!==1?'s':''}</div>
+          <div style="font-size:.58rem;color:var(--dim);font-family:'IBM Plex Mono',monospace;margin-top:2px">${d.desc}</div>
+        </div>
+      </div>
+      <div class="dt-body">${memberRows}${anonRows}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('dotMapGrid').innerHTML=tierHtml;
+
+  // Matrix table
+  const matrixHtml=MEMBERS.map(m=>{
+    const l=latest(m.id);
+    const toneScore=l?l.score:null;
+    const sepImplied=dotToTone(m.sepDot);
+    const diff=toneScore!==null?toneScore-sepImplied:0;
+    const {cls:aCls,txt:aTxt}=alignLabel(diff);
+    const dotTier=DOT_DIST.find(d=>Math.abs(d.rate-m.sepDot)<0.1);
+    const dc=dotColor(m.sepDot);
+    return `<tr onclick="selectMember('${m.id}');switchTab('members',document.querySelectorAll('.ntab')[0])" style="cursor:pointer">
+      <td><span class="mt-av" style="background:${m.color}20;border-color:${m.color}55;color:${m.color}">${m.ini}</span>${m.name}${m.voter2026?'<span class="voter-star">★</span>':''}</td>
+      <td style="font-size:.72rem;color:var(--dim)">${m.role.split('·')[0].trim()}</td>
+      <td style="color:${dc};font-family:'IBM Plex Mono',monospace;font-size:.72rem">${m.sepDot}%</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:${dc}">${cutsLabel(dotTier?.cuts??1)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:${toneScore!==null?gc(toneScore):'var(--dim2)'}">${toneScore!==null?(toneScore>0?'+':'')+toneScore+' ('+gl(toneScore)+')':'—'}</td>
+      <td><span class="${aCls}">${aTxt}</span>${m.dissent?`<span style="margin-left:4px;font-size:.58rem;color:${m.dissent==='hawkish'?'var(--hawk)':'var(--dove)'}">⚡ ${m.dissent}</span>`:''}</td>
+      <td><div class="conf-pips" style="display:inline-flex;gap:2px">${confPips(m.conf)}</div></td>
+      <td style="font-size:.68rem;color:var(--dim);max-width:280px;line-height:1.4">${m.evidence.split('.')[0]}.</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('matrixBody').innerHTML=matrixHtml;
+}
+// ═══════════════════════════════════════
+// CONSENSUS SIGNALS ENGINE
+// ═══════════════════════════════════════
+
+// Signal themes: each has a label, direction, trigger phrases, and sentence-extraction patterns
+const SIGNAL_THEMES = [
+  // ── DOVISH THEMES ─────────────────────────────────────────
+  { id:'significantly_restrictive', dir:'dove', label:'Policy Significantly Above Neutral',
+    desc:'Members characterising current rates as well above neutral, implying meaningful room to cut',
+    triggers:['significantly restrictive','substantially restrictive','well above neutral','far above neutral','much above neutral','meaningfully above neutral'],
+    weight:3 },
+
+  { id:'cuts_warranted', dir:'dove', label:'Rate Cuts Explicitly Warranted',
+    desc:'Members explicitly calling for continued or further easing',
+    triggers:['continue cutting','continue to cut','further cuts','further easing','case for cutting','cut rates','should cut','easing is appropriate','appropriate to cut','lower rates'],
+    weight:3 },
+
+  { id:'labor_concern', dir:'dove', label:'Labor Market Deterioration Concern',
+    desc:'Members expressing concern that the labor market is weakening or cooling more than desired',
+    triggers:['labor market','labor fragility','labor market cooling','job losses','employment weakening','layoffs','labor market softening','more concerned about employment','weakening employment'],
+    weight:2 },
+
+  { id:'inflation_progress', dir:'dove', label:'Inflation Progress Sufficient',
+    desc:'Members indicating inflation has come down enough to justify policy adjustment',
+    triggers:['inflation coming down','inflation has come down','substantial progress','made significant progress','inflation near target','close to target','on path to 2','heading to 2 percent','disinflation'],
+    weight:2 },
+
+  { id:'soft_landing', dir:'dove', label:'Soft Landing / Golden Path',
+    desc:'Members expressing confidence in a soft landing or benign economic scenario',
+    triggers:['soft landing','golden path','both sides of the mandate','dual mandate in balance','risks are balanced','roughly balanced'],
+    weight:1 },
+
+  // ── HAWKISH THEMES ────────────────────────────────────────
+  { id:'inflation_stalled', dir:'hawk', label:'Inflation Progress Has Stalled',
+    desc:'Members noting inflation is stuck, above target, or progress has reversed',
+    triggers:['stalled','inflation stalled','inflation stuck','inflation too high','above target','core inflation elevated','not making progress','progress has slowed','uncomfortable','not at 2'],
+    weight:3 },
+
+  { id:'hold_justified', dir:'hawk', label:'Hold / Pause in Cuts Justified',
+    desc:'Members explicitly endorsing a pause or hold in rate cuts',
+    triggers:['pause','hold rates','hold at current','no need to cut','no hurry to cut','not in a hurry','do not need to rush','proceed carefully','wait and see','can afford to wait'],
+    weight:3 },
+
+  { id:'near_neutral', dir:'hawk', label:'Policy Near or At Neutral',
+    desc:'Members arguing policy is already close to neutral, limiting room for further cuts',
+    triggers:['near neutral','close to neutral','already at neutral','approaching neutral','almost neutral','at or near neutral','not far from neutral','not overly restrictive','modestly restrictive'],
+    weight:2 },
+
+  { id:'upside_inflation', dir:'hawk', label:'Upside Inflation Risks Remain',
+    desc:'Members flagging risks that inflation could re-accelerate or stay elevated',
+    triggers:['upside risk','inflation risk','re-accelerate','reignite','tariff','tariffs','trade policy','price pressures','persistent inflation','services inflation'],
+    weight:2 },
+
+  { id:'higher_neutral', dir:'hawk', label:'Neutral Rate Higher Than Pre-Pandemic',
+    desc:'Members arguing the neutral rate has shifted up, meaning policy is less restrictive than it appears',
+    triggers:['neutral rate is higher','higher neutral','r-star','r* has risen','neutral has shifted','neutral may be higher','estimate of neutral is higher'],
+    weight:2 },
+
+  // ── MIXED / KEY SIGNALS ───────────────────────────────────
+  { id:'data_dependent', dir:'neutral', label:'Strongly Data-Dependent / No Preset Path',
+    desc:'Members emphasising uncertainty and data dependence without leaning clearly in either direction',
+    triggers:['no preset course','not on a preset path','data dependent','meeting by meeting','incoming data','wait for data','need more data','monitor carefully','assess each meeting'],
+    weight:1 },
+];
+
+// Extract a sentence or phrase window around a trigger from speech text
+function extractQuote(text, triggers, maxLen=220) {
+  const t = text.toLowerCase();
+  for (const trigger of triggers) {
+    const idx = t.indexOf(trigger);
+    if (idx === -1) continue;
+    // Walk back to start of sentence
+    let start = idx;
+    while (start > 0 && !['.','!','?','\n'].includes(text[start-1])) start--;
+    // Walk forward to end of sentence (or 220 chars)
+    let end = idx + trigger.length;
+    while (end < text.length && !['.','!','?'].includes(text[end])) end++;
+    end = Math.min(end + 1, text.length);
+    let quote = text.slice(start, end).trim();
+    // If too long, just grab a window centred on the trigger
+    if (quote.length > maxLen) {
+      const centre = idx - start;
+      const halfW = Math.floor(maxLen / 2);
+      const s2 = Math.max(0, centre - halfW);
+      quote = (s2 > 0 ? '…' : '') + text.slice(start + s2, start + s2 + maxLen).trim() + '…';
+    }
+    return { quote, trigger };
+  }
+  return null;
+}
+
+// Highlight trigger phrase inside quote HTML
+function highlightQuote(quote, trigger, dir) {
+  const cls = dir === 'hawk' ? 'hawk' : dir === 'dove' ? 'dove' : 'neut';
+  const re = new RegExp(`(${trigger.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+  return quote.replace(re, `<mark class="${cls}">$1</mark>`);
+}
+
+let csFilter = 'all';
+let csExpanded = new Set();
+
+function renderConsensus() {
+  const wrap = document.getElementById('consensusWrap');
+  if (!wrap) return;
+
+  // Check we have scored data
+  const totalScored = Object.values(data).reduce((a,b)=>a+b.length,0);
+  if (totalScored === 0) {
+    wrap.innerHTML = `<div class="cs-empty">No scored speeches yet.<br>Score speeches first using the Member Tone Tracker tab,<br>then return here to see consensus signals.</div>`;
+    return;
+  }
+
+  // For each member, use their latest speech from CORPUS (we need the raw text)
+  // Build lookup: memberId -> { score, text, date, title, venue, keywords }
+  const memberSignalData = {};
+  MEMBERS.forEach(m => {
+    const scored = data[m.id] || [];
+    if (!scored.length) return;
+    // Latest scored speech
+    const latestScored = scored.slice().sort((a,b)=>new Date(a.date)-new Date(b.date)).pop();
+    // Find matching corpus entry
+    const corpusEntries = CORPUS[m.id] || [];
+    const corpusMatch = corpusEntries.find(e => e.date === latestScored.date) ||
+                        corpusEntries[corpusEntries.length - 1];
+    if (!corpusMatch) return;
+    memberSignalData[m.id] = {
+      member: m,
+      score: latestScored.score,
+      stance: latestScored.stance,
+      balance: latestScored.balance,
+      direction: latestScored.direction,
+      keywords: latestScored.keywords || [],
+      text: corpusMatch.text,
+      date: corpusMatch.date,
+      title: corpusMatch.title,
+      venue: corpusMatch.venue,
+    };
+  });
+
+  // Build clusters: for each theme, find members whose text contains a trigger
+  const clusters = SIGNAL_THEMES.map(theme => {
+    const matches = [];
+    Object.values(memberSignalData).forEach(md => {
+      const result = extractQuote(md.text, theme.triggers);
+      if (!result) return;
+      matches.push({ ...md, extractedQuote: result.quote, matchedTrigger: result.trigger });
+    });
+    // Sort by weight desc (chair first, then governors, etc)
+    matches.sort((a,b) => b.member.weight - a.member.weight);
+    return { ...theme, matches };
+  }).filter(c => c.matches.length >= 2); // at least 2 members = consensus
+
+  // Sort: most members first, then by direction match to current composite
+  const composite = computeComposite();
+  const latestComposite = composite.length ? composite[composite.length-1].score : 0;
+  const primaryDir = latestComposite > 10 ? 'hawk' : latestComposite < -10 ? 'dove' : 'neutral';
+
+  clusters.sort((a,b) => {
+    // Primary sort: direction aligned with composite first
+    const aAligned = a.dir === primaryDir ? 1 : 0;
+    const bAligned = b.dir === primaryDir ? 1 : 0;
+    if (bAligned !== aAligned) return bAligned - aAligned;
+    // Then by member count × weight
+    const aStr = a.matches.reduce((s,m)=>s+m.member.weight,0);
+    const bStr = b.matches.reduce((s,m)=>s+m.member.weight,0);
+    return bStr - aStr;
+  });
+
+  // Apply filter
+  const filtered = csFilter === 'all' ? clusters
+    : csFilter === 'hawk' ? clusters.filter(c=>c.dir==='hawk')
+    : csFilter === 'dove' ? clusters.filter(c=>c.dir==='dove')
+    : clusters.filter(c=>c.dir==='neutral');
+
+  // Stats
+  const totalSignals = clusters.reduce((s,c)=>s+c.matches.length,0);
+  const hawkClusters = clusters.filter(c=>c.dir==='hawk');
+  const doveClusters = clusters.filter(c=>c.dir==='dove');
+  const hawkWeight = hawkClusters.reduce((s,c)=>s+c.matches.reduce((ss,m)=>ss+m.member.weight,0),0);
+  const doveWeight = doveClusters.reduce((s,c)=>s+c.matches.reduce((ss,m)=>ss+m.member.weight,0),0);
+  const balance = hawkWeight + doveWeight > 0
+    ? Math.round((doveWeight / (hawkWeight + doveWeight)) * 100)
+    : 50;
+  const balanceColor = balance > 60 ? 'var(--dove)' : balance < 40 ? 'var(--hawk)' : 'var(--neut)';
+  const balanceLabel = balance > 60 ? 'Dovish Lean' : balance < 40 ? 'Hawkish Lean' : 'Balanced';
+
+  // Render
+  let html = `
+  <div class="cs-header">
+    <div class="cs-kpi">
+      <div class="cs-kpi-val" style="color:var(--accent)">${clusters.length}</div>
+      <div class="cs-kpi-lbl">Consensus Themes</div>
+    </div>
+    <div class="cs-kpi">
+      <div class="cs-kpi-val" style="color:var(--hawk)">${hawkClusters.length}</div>
+      <div class="cs-kpi-lbl">Hawkish Clusters</div>
+    </div>
+    <div class="cs-kpi">
+      <div class="cs-kpi-val" style="color:var(--dove)">${doveClusters.length}</div>
+      <div class="cs-kpi-lbl">Dovish Clusters</div>
+    </div>
+    <div class="cs-kpi">
+      <div class="cs-kpi-val" style="color:${balanceColor}">${balanceLabel}</div>
+      <div class="cs-kpi-lbl">Signal Balance</div>
+    </div>
+  </div>
+
+  <div class="cs-filter-row">
+    <span class="cs-filter-lbl">Show:</span>
+    <button class="cs-filter-btn${csFilter==='all'?' active':''}" onclick="setCsFilter('all',this)">ALL THEMES</button>
+    <button class="cs-filter-btn${csFilter==='hawk'?' active':''}" onclick="setCsFilter('hawk',this)" style="${csFilter==='hawk'?'':''}">🦅 HAWKISH</button>
+    <button class="cs-filter-btn${csFilter==='dove'?' active':''}" onclick="setCsFilter('dove',this)">🕊 DOVISH</button>
+    <button class="cs-filter-btn${csFilter==='neutral'?' active':''}" onclick="setCsFilter('neutral',this)">⚖ NEUTRAL</button>
+    <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--dim2)">${totalScored} speeches scored · ${totalSignals} signal matches · latest speeches only</span>
+  </div>
+
+  ${filtered.length === 0 ? `<div class="cs-empty">No ${csFilter} consensus themes found.</div>` : ''}
+
+  ${filtered.map(cluster => {
+    const isOpen = csExpanded.has(cluster.id);
+    const clrMap = {hawk:'var(--hawk)',dove:'var(--dove)',neutral:'var(--accent)'};
+    const clr = clrMap[cluster.dir] || 'var(--neut)';
+    const bgMap = {hawk:'rgba(217,84,43,.15)',dove:'rgba(43,143,196,.15)',neutral:'rgba(232,184,75,.12)'};
+    const bg = bgMap[cluster.dir];
+    const dirLabel = cluster.dir === 'hawk' ? '🦅 HAWKISH' : cluster.dir === 'dove' ? '🕊 DOVISH' : '⚖ NEUTRAL';
+    const totalW = cluster.matches.reduce((s,m)=>s+m.member.weight,0);
+    const maxPossW = MEMBERS.reduce((s,m)=>s+m.weight,0);
+    const strengthPct = Math.round((totalW/maxPossW)*100);
+    const voterCount = cluster.matches.filter(m=>m.member.voter2026).length;
+
+    return `<div class="cluster-card">
+      <div class="cluster-head" onclick="toggleCluster('${cluster.id}')">
+        <div class="cluster-direction" style="background:${clr};box-shadow:0 0 5px ${clr}55"></div>
+        <div class="cluster-theme" style="color:${clr}">${cluster.label}</div>
+        <div class="cluster-meta">
+          <span class="cluster-count" style="background:${bg};color:${clr}">${cluster.matches.length} members</span>
+          ${voterCount > 0 ? `<span class="cluster-strength" style="color:${clr}">${voterCount} voter${voterCount>1?'s':''}</span>` : ''}
+          <span class="cluster-strength">${dirLabel}</span>
+          <span class="cluster-chevron${isOpen?' open':''}">▼</span>
+        </div>
+      </div>
+      <div class="cluster-consensus-bar">
+        <div class="cluster-consensus-fill" style="width:${strengthPct}%;background:${clr}88"></div>
+      </div>
+      <div class="cluster-body${isOpen?' open':''}">
+        <div style="padding:9px 16px;background:var(--bg);border-bottom:1px solid var(--border)">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--dim)">${cluster.desc}</span>
+        </div>
+        ${cluster.matches.map(md => {
+          const mc = gc(md.score);
+          const weightLabel = md.member.weight >= 3 ? 'Chair 3×'
+            : md.member.weight >= 2 ? 'Governor 2×'
+            : md.member.weight >= 1.5 ? 'Voter 1.5×'
+            : md.member.weight >= 1 ? 'Non-voter 1×'
+            : `${md.member.weight}×`;
+          const highlightedQuote = highlightQuote(md.extractedQuote, md.matchedTrigger, cluster.dir);
+          const apiKeywords = (md.keywords||[]).filter(k=>k.type!=='neutral').slice(0,4);
+
+          return `<div class="signal-row" onclick="selectMember('${md.member.id}');switchTab('members',document.querySelectorAll('.ntab')[0])">
+            <div class="signal-member">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+                <div style="width:26px;height:26px;border-radius:50%;background:${md.member.color}22;border:1.5px solid ${md.member.color}66;color:${md.member.color};font-family:'IBM Plex Mono',monospace;font-size:.55rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${md.member.ini}</div>
+                <div>
+                  <div class="signal-member-name">${md.member.name}${md.member.voter2026?'<span style="color:var(--accent);font-size:.52rem;margin-left:3px">★</span>':''}</div>
+                </div>
+              </div>
+              <div class="signal-member-meta">${md.member.role.split('·')[0].trim()}</div>
+              <div class="signal-weight-pip" style="display:inline-block;margin-top:3px">${weightLabel}</div>
+            </div>
+            <div class="signal-quote-block">
+              <p class="signal-quote">"${highlightedQuote}"</p>
+              <div class="signal-date-venue">${new Date(md.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} · ${md.venue||md.title}</div>
+              ${apiKeywords.length ? `<div class="signal-keywords">${apiKeywords.map(k=>`<span class="skw ${k.type}">${k.word}</span>`).join('')}</div>` : ''}
+            </div>
+            <div class="signal-score-col">
+              <div class="signal-score-num" style="color:${mc}">${md.score>0?'+':''}${md.score}</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;color:${mc}">${gl(md.score)}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('')}`;
+
+  wrap.innerHTML = html;
+}
+
+function toggleCluster(id) {
+  if (csExpanded.has(id)) csExpanded.delete(id);
+  else csExpanded.add(id);
+  // Re-render just the chevron and body without full re-render
+  const card = [...document.querySelectorAll('.cluster-card')]
+    .find(c => c.querySelector('.cluster-head')?.getAttribute('onclick')?.includes(id));
+  if (!card) return;
+  const body = card.querySelector('.cluster-body');
+  const chev = card.querySelector('.cluster-chevron');
+  if (body) body.classList.toggle('open', csExpanded.has(id));
+  if (chev) chev.classList.toggle('open', csExpanded.has(id));
+}
+
+// ═══════════════════════════════════════
+// KEY STATEMENTS ENGINE
+// ═══════════════════════════════════════
+
+// Hawk/dove signal phrase sets (used to highlight key phrases in quotes)
+const HAWK_SIGNALS = [
+  'inflation too high','inflation remains elevated','inflation remains too high','above target','stalled',
+  'sticky inflation','not enough progress','no hurry','do not need to rush','not in a rush',
+  'patience','patient','cautious','caution','deliberate','wait and see','wait for more data',
+  'hold','pause','insufficient progress','upside risk','upside risks to inflation',
+  'near neutral','close to neutral','at or near neutral','already at neutral',
+  'higher neutral','neutral rate is higher','r-star has risen',
+  'not overly restrictive','insufficiently restrictive','not restrictive',
+  'tariff','services inflation','price pressures persist','inflation persistence',
+];
+const DOVE_SIGNALS = [
+  'significantly restrictive','substantially restrictive','well above neutral',
+  'meaningfully above neutral','far above neutral','meaningfully restrictive',
+  'labor market','labor fragility','hiring has slowed','job growth','employment weakening',
+  'labor market cooling','weakening labor','fragile labor',
+  'continue cutting','continue to cut','further cuts','rate cuts','case for cutting',
+  'easing','lower rates','reduce restraint','remove restriction','recalibrate',
+  'disinflation','inflation progress','progress on inflation','inflation coming down',
+  'inflation under control','heading to 2','path to 2 percent','closer to target',
+  'soft landing','golden path','supply side','transitory',
+];
+const NEUT_SIGNALS = [
+  'data dependent','not on a preset','no preset course','meeting by meeting',
+  'both sides','dual mandate','balanced risks','risks are balanced','well positioned',
+  'modestly restrictive','moderately restrictive',
+];
+
+// Find the single most-signal-dense sentence in a text
+function findKeyStatement(text, direction) {
+  // Split into sentences
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+
+  const signals = direction > 10 ? HAWK_SIGNALS : direction < -10 ? DOVE_SIGNALS : [...HAWK_SIGNALS, ...DOVE_SIGNALS, ...NEUT_SIGNALS];
+
+  let best = null, bestScore = -1;
+  for (const sent of sentences) {
+    const t = sent.toLowerCase();
+    let score = 0;
+    for (const sig of HAWK_SIGNALS) if (t.includes(sig)) score += (direction > 0 ? 3 : 1);
+    for (const sig of DOVE_SIGNALS) if (t.includes(sig)) score += (direction < 0 ? 3 : 1);
+    for (const sig of NEUT_SIGNALS) if (t.includes(sig)) score += 1;
+    if (score > bestScore) { bestScore = score; best = sent.trim(); }
+  }
+  // Fall back to first sentence if nothing matched
+  if (!best || bestScore === 0) best = sentences[0]?.trim() || text.slice(0, 200);
+  return best;
+}
+
+// Highlight all signal phrases within a sentence
+function highlightStatement(text, score) {
+  let result = text;
+  const allSignals = [
+    ...HAWK_SIGNALS.map(s => ({s, cls:'hawk'})),
+    ...DOVE_SIGNALS.map(s => ({s, cls:'dove'})),
+    ...NEUT_SIGNALS.map(s => ({s, cls:'neut'})),
+  ].sort((a,b) => b.s.length - a.s.length); // longest first so multi-word phrases take priority
+
+  const marked = [];
+  for (const {s, cls} of allSignals) {
+    const re = new RegExp(`(?<![a-z])(${s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})(?![a-z])`, 'gi');
+    if (re.test(result)) {
+      result = result.replace(re, `<mark class="${cls}">$1</mark>`);
+      marked.push({s, cls});
+      if (marked.length >= 6) break;
+    }
+  }
+  return result;
+}
+
+let kqSort = 'weight'; // 'weight' | 'score' | 'direction'
+
+function renderKeyQuotes() {
+  const wrap = document.getElementById('keyQuotesWrap');
+  if (!wrap) return;
+
+  const totalScored = Object.values(data).reduce((a,b)=>a+b.length,0);
+  if (totalScored === 0) {
+    wrap.innerHTML = `<div class="cs-empty">No scored speeches yet.<br>Score speeches in the Member Tone Tracker tab first.</div>`;
+    return;
+  }
+
+  // Build member display objects: only members with scored data
+  const memberData = MEMBERS
+    .filter(m => m.weight >= 0.5) // exclude fully retired
+    .map(m => {
+      const scored = (data[m.id]||[]).slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+      if (!scored.length) return null;
+      const latest = scored[scored.length - 1];
+      const corpusEntries = (CORPUS[m.id]||[]).slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+      const corpusEntry = corpusEntries.find(e=>e.date===latest.date) || corpusEntries[corpusEntries.length-1];
+      if (!corpusEntry) return null;
+
+      const keyStatement = findKeyStatement(corpusEntry.text, latest.score);
+      const highlighted = highlightStatement(keyStatement, latest.score);
+
+      return {
+        m,
+        score: latest.score,
+        stance: latest.stance ?? null,
+        balance: latest.balance ?? null,
+        direction: latest.direction ?? null,
+        reason: latest.reason || '',
+        keywords: latest.keywords || [],
+        date: corpusEntry.date,
+        title: corpusEntry.title,
+        venue: corpusEntry.venue,
+        keyStatement,
+        highlighted,
+      };
+    })
+    .filter(Boolean);
+
+  // Sort
+  const sorted = [...memberData];
+  if (kqSort === 'weight') {
+    sorted.sort((a,b) => b.m.weight - a.m.weight);
+  } else if (kqSort === 'score') {
+    sorted.sort((a,b) => b.score - a.score);
+  } else if (kqSort === 'direction') {
+    // Extremes first (most hawkish, then most dovish)
+    sorted.sort((a,b) => Math.abs(b.score) - Math.abs(a.score));
+  }
+
+  // Group by weight tier when sorted by weight
+  const useGroups = kqSort === 'weight';
+  const groups = useGroups ? [
+    { label:'Chair', color:'var(--accent)', members: sorted.filter(d=>d.m.weight>=3) },
+    { label:'Board of Governors', color:'#7c6af5', members: sorted.filter(d=>d.m.weight>=2&&d.m.weight<3) },
+    { label:'Voting Regional Presidents', color:'var(--neut)', members: sorted.filter(d=>d.m.weight>=1.5&&d.m.weight<2) },
+    { label:'Non-Voting Regional Presidents', color:'var(--dim2)', members: sorted.filter(d=>d.m.weight>=0.5&&d.m.weight<1.5) },
+  ].filter(g=>g.members.length>0) : [{ label:null, members: sorted }];
+
+  // Stats bar
+  const voterAvg = (() => {
+    const voters = memberData.filter(d=>d.m.voter2026);
+    if (!voters.length) return 0;
+    const num = voters.reduce((s,d)=>s+d.score*d.m.weight,0);
+    const den = voters.reduce((s,d)=>s+d.m.weight,0);
+    return Math.round(num/den);
+  })();
+  const compositeArr = computeComposite();
+  const compositeNow = compositeArr.length ? compositeArr[compositeArr.length-1].score : 0;
+  const hawkCount = memberData.filter(d=>d.score>20).length;
+  const doveCount = memberData.filter(d=>d.score<-20).length;
+
+  let html = `
+  <div class="kq-controls">
+    <span class="kq-sort-lbl">Sort by:</span>
+    <button class="kq-btn${kqSort==='weight'?' active':''}" onclick="setKqSort('weight',this)">⚖ Weight (Influence)</button>
+    <button class="kq-btn${kqSort==='score'?' active':''}" onclick="setKqSort('score',this)">🦅 Most Hawkish First</button>
+    <button class="kq-btn${kqSort==='direction'?' active':''}" onclick="setKqSort('direction',this)">⚡ Most Extreme First</button>
+    <div style="margin-left:auto;display:flex;gap:16px;font-family:'IBM Plex Mono',monospace;font-size:.59rem">
+      <span>Composite: <span style="color:${gc(compositeNow)};font-weight:600">${compositeNow>0?'+':''}${compositeNow}</span></span>
+      <span>Voter avg: <span style="color:${gc(voterAvg)};font-weight:600">${voterAvg>0?'+':''}${voterAvg}</span></span>
+      <span style="color:var(--hawk)">Hawks: ${hawkCount}</span>
+      <span style="color:var(--dove)">Doves: ${doveCount}</span>
+    </div>
+  </div>
+
+  ${groups.map(group => {
+    let rankOffset = 0;
+    if (useGroups) {
+      const groupIdx = groups.indexOf(group);
+      for (let i=0;i<groupIdx;i++) rankOffset+=groups[i].members.length;
+    }
+    return `
+    ${group.label ? `<div class="kq-section-head"><div class="kq-section-dot" style="background:${group.color}"></div>${group.label}<span style="margin-left:auto;color:var(--dim2);font-size:.56rem">${group.members.length} member${group.members.length!==1?'s':''}</span></div>` : ''}
+    ${group.members.map((d, gi) => {
+      const rank = kqSort==='weight' ? rankOffset+gi+1 : gi+1;
+      const c = gc(d.score);
+      const apiKeywords = d.keywords.filter(k=>k.type!=='neutral').slice(0,5);
+      const weightLabel = d.m.weight>=3?'Chair 3×':d.m.weight>=2?'Governor 2×':d.m.weight>=1.5?'Voter 1.5×':d.m.weight>=1?'Non-voter 1×':`${d.m.weight}×`;
+      const heatWidth = Math.min(100, Math.abs(d.score)*1.2);
+      const heatColor = d.score>10?'var(--hawk)':d.score<-10?'var(--dove)':'var(--neut)';
+
+      // Component bars if available
+      const hasComponents = d.stance!==null && d.balance!==null && d.direction!==null;
+      const compHTML = hasComponents ? `
+        <div class="kq-components">
+          <span class="kq-comp-label">Components:</span>
+          <span class="kq-comp" style="color:${gc(d.stance)}">Stance ${d.stance>0?'+':''}${d.stance}</span>
+          <span class="kq-comp" style="color:${gc(d.balance)}">Balance ${d.balance>0?'+':''}${d.balance}</span>
+          <span class="kq-comp" style="color:${gc(d.direction)}">Direction ${d.direction>0?'+':''}${d.direction}</span>
+        </div>` : '';
+
+      return `
+      <div class="kq-member-block">
+        <div class="kq-member-header" onclick="selectMember('${d.m.id}');switchTab('members',document.querySelectorAll('.ntab')[0])">
+          <div class="kq-rank-col">
+            <div class="kq-rank" style="color:${d.m.weight>=3?'var(--accent)':d.m.weight>=2?'#7c6af5aa':'var(--dim2)'}">#${rank}<br>${d.m.weight}×</div>
+          </div>
+          <div class="kq-mh-inner">
+            <div class="kq-avatar" style="background:${d.m.color}20;border:1.5px solid ${d.m.color}66;color:${d.m.color}">${d.m.ini}</div>
+            <div class="kq-member-info">
+              <div class="kq-name">${d.m.name}</div>
+              <div class="kq-role">${d.m.role}</div>
+              <div class="kq-badges">
+                ${d.m.voter2026?'<span class="kq-voter-label">★ 2026 VOTER</span>':''}
+                ${d.m.dissent?`<span class="kq-dissent-badge" style="background:${d.m.dissent==='hawkish'?'rgba(217,84,43,.15)':'rgba(43,143,196,.15)'};color:${d.m.dissent==='hawkish'?'var(--hawk)':'var(--dove)'};border:1px solid ${d.m.dissent==='hawkish'?'rgba(217,84,43,.3)':'rgba(43,143,196,.3)'}">⚡ ${d.m.dissent} dissenter</span>`:''}
+              </div>
+            </div>
+          </div>
+          <div class="kq-score-block">
+            <div class="kq-verdict-col">
+              <div class="kq-verdict" style="color:${c}">${gl(d.score)}</div>
+              <div class="kq-weight-badge" style="margin-top:3px">${weightLabel}</div>
+            </div>
+            <div class="kq-composite" style="color:${c}">${d.score>0?'+':''}${d.score}</div>
+          </div>
+        </div>
+        <div class="kq-heatbar"><div class="kq-heatfill" style="width:${heatWidth}%;background:${heatColor}77"></div></div>
+        <div class="kq-body">
+          <div class="kq-key-quote">"${d.highlighted}"</div>
+          <div class="kq-speech-info">${new Date(d.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} · ${d.venue||d.title}</div>
+          ${compHTML}
+          ${d.reason ? `<div class="kq-reason">${d.reason}</div>` : ''}
+          ${apiKeywords.length ? `<div class="kq-keywords">${apiKeywords.map(k=>`<span class="kq-kw ${k.type}">${k.word}</span>`).join('')}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('')}`;
+  }).join('')}`;
+
+  wrap.innerHTML = html;
+}
+
+// ═══════════════════════════════════════
+// MARKET SIGNALS ENGINE
+// ═══════════════════════════════════════
+
+// Historical FedWatch probability snapshots baked in from public data
+// Format: { date, nextMeeting, cutPct, holdPct, hikePct, yearEndRate, notes }
+const HISTORICAL_FW = [
+  // 2024 — Cutting cycle
+  { date:'2024-09-06', nextMeeting:'2024-09-18', cutPct:25, holdPct:75, hikePct:0, yearEndRate:4.625, notes:'Pre-Sep meeting — 50bp vs 25bp debate' },
+  { date:'2024-09-10', nextMeeting:'2024-09-18', cutPct:66, holdPct:34, hikePct:0, yearEndRate:4.5, notes:'CPI data shifts; 50bp gains ground' },
+  { date:'2024-09-17', nextMeeting:'2024-09-18', cutPct:65, holdPct:35, hikePct:0, yearEndRate:4.375, notes:'Day before Sep cut — 50bp consensus' },
+  { date:'2024-10-04', nextMeeting:'2024-11-07', cutPct:97, holdPct:3, hikePct:0, yearEndRate:4.375, notes:'Post Sep cut; Nov 25bp near certain' },
+  { date:'2024-10-31', nextMeeting:'2024-11-07', cutPct:98, holdPct:2, hikePct:0, yearEndRate:4.375, notes:'Pre-Nov meeting — 25bp fully priced' },
+  { date:'2024-11-14', nextMeeting:'2024-12-18', cutPct:72, holdPct:28, hikePct:0, yearEndRate:4.25, notes:'Post-Nov cut; Dec uncertain after hot CPI' },
+  { date:'2024-11-27', nextMeeting:'2024-12-18', cutPct:66, holdPct:34, hikePct:0, yearEndRate:4.25, notes:'Dec cut odds moderate ahead of PCE' },
+  { date:'2024-12-06', nextMeeting:'2024-12-18', cutPct:85, holdPct:15, hikePct:0, yearEndRate:4.25, notes:'NFP; Dec cut regains ground' },
+  { date:'2024-12-17', nextMeeting:'2024-12-18', cutPct:95, holdPct:5, hikePct:0, yearEndRate:4.25, notes:'Day before Dec cut' },
+  // 2025 — Pause cycle
+  { date:'2025-01-07', nextMeeting:'2025-01-29', cutPct:7, holdPct:93, hikePct:0, yearEndRate:3.875, notes:'Jan pause near certain; 2 cuts priced for 2025' },
+  { date:'2025-01-10', nextMeeting:'2025-01-29', cutPct:3, holdPct:97, hikePct:0, yearEndRate:3.875, notes:'Hot jobs; pause fully locked' },
+  { date:'2025-02-14', nextMeeting:'2025-03-19', cutPct:8, holdPct:92, hikePct:0, yearEndRate:3.875, notes:'Hot CPI — 2025 cuts priced out sharply' },
+  { date:'2025-03-07', nextMeeting:'2025-03-19', cutPct:5, holdPct:95, hikePct:0, yearEndRate:3.75, notes:'Pre-Mar meeting; hold consensus' },
+  { date:'2025-04-04', nextMeeting:'2025-05-07', cutPct:38, holdPct:61, hikePct:1, yearEndRate:3.5, notes:'Tariff shock; cuts priced back in sharply' },
+  { date:'2025-04-11', nextMeeting:'2025-05-07', cutPct:20, holdPct:77, hikePct:3, yearEndRate:3.625, notes:'Post-tariff volatility; partial reversal' },
+  { date:'2025-05-02', nextMeeting:'2025-05-07', cutPct:4, holdPct:96, hikePct:0, yearEndRate:3.625, notes:'Pre-May meeting; hold' },
+  { date:'2025-06-06', nextMeeting:'2025-06-18', cutPct:15, holdPct:85, hikePct:0, yearEndRate:3.5, notes:'Jobs solid; Jun cut odds low' },
+  { date:'2025-07-11', nextMeeting:'2025-07-30', cutPct:6, holdPct:94, hikePct:0, yearEndRate:3.5, notes:'CPI benign but Fed in wait mode' },
+  { date:'2025-08-08', nextMeeting:'2025-09-17', cutPct:72, holdPct:28, hikePct:0, yearEndRate:3.25, notes:'Labor weakness; Sep cut back on table' },
+  { date:'2025-09-12', nextMeeting:'2025-09-17', cutPct:80, holdPct:20, hikePct:0, yearEndRate:3.25, notes:'Pre-Sep cut; 25bp expected' },
+  { date:'2025-10-10', nextMeeting:'2025-11-05', cutPct:20, holdPct:79, hikePct:1, yearEndRate:3.375, notes:'Post Sep cut; Nov uncertain' },
+  { date:'2025-11-28', nextMeeting:'2025-12-10', cutPct:60, holdPct:40, hikePct:0, yearEndRate:3.25, notes:'Dec cut back in play post-data' },
+  { date:'2025-12-05', nextMeeting:'2025-12-10', cutPct:78, holdPct:22, hikePct:0, yearEndRate:3.25, notes:'Pre-Dec meeting; cut consensus' },
+  // 2026 — Current
+  { date:'2026-01-07', nextMeeting:'2026-01-29', cutPct:8, holdPct:92, hikePct:0, yearEndRate:3.25, notes:'Jan hold; 2 cuts priced for 2026' },
+  { date:'2026-01-31', nextMeeting:'2026-03-19', cutPct:18, holdPct:81, hikePct:1, yearEndRate:3.25, notes:'Post-Jan hold; Mar cut unlikely' },
+  { date:'2026-02-14', nextMeeting:'2026-03-19', cutPct:12, holdPct:85, hikePct:3, yearEndRate:3.375, notes:'Hot CPI; 2026 cuts priced down to 1' },
+  { date:'2026-02-24', nextMeeting:'2026-03-19', cutPct:14, holdPct:83, hikePct:3, yearEndRate:3.375, notes:'Current · Mar hold near-certain; 1 cut 2026' },
+];
+
+// Session-only user snapshots
+let userSnapshots = [];
+let msChartInstance = null;
+
+function initMsDate() {
+  const d = document.getElementById('msDate');
+  if (d) d.value = new Date().toISOString().slice(0,10);
+}
+
+function saveMsEntry() {
+  const date = document.getElementById('msDate').value;
+  const nextMeeting = document.getElementById('msNextMeeting').value;
+  const cutPct = parseFloat(document.getElementById('msCutProb').value) || 0;
+  const holdPct = parseFloat(document.getElementById('msHoldProb').value) || 0;
+  const hikePct = parseFloat(document.getElementById('msHikeProb').value) || 0;
+  const yearEndRate = parseFloat(document.getElementById('msYearEnd').value);
+  const notes = document.getElementById('msNotes').value.trim();
+
+  if (!date) { alert('Please enter a date'); return; }
+  if (cutPct + holdPct + hikePct < 90) {
+    if (!confirm(`Probabilities sum to ${cutPct+holdPct+hikePct}% — save anyway?`)) return;
+  }
+  userSnapshots.push({ date, nextMeeting, cutPct, holdPct, hikePct, yearEndRate, notes, userAdded: true });
+  userSnapshots.sort((a,b) => a.date.localeCompare(b.date));
+  renderMarketSignals();
+}
+
+function deleteMsEntry(idx) {
+  userSnapshots.splice(idx, 0);
+  // idx is index within userSnapshots
+  userSnapshots.splice(idx, 1);
+  renderMarketSignals();
+}
+
+function allSnapshots() {
+  return [...HISTORICAL_FW, ...userSnapshots].sort((a,b) => a.date.localeCompare(b.date));
+}
+
+// Convert year-end rate to implied cuts from current 3.625%
+function rateToCuts(rate) {
+  return Math.round((3.625 - rate) / 0.25);
+}
+
+// Convert year-end cuts to a "dovishness" score roughly comparable to FOMC tone
+// 0 cuts = 0, 1 cut = -15, 2 cuts = -30, 3 cuts = -45, etc.
+// hike = +20 per hike
+function cutsToToneScale(cuts) { return Math.round(-cuts * 18); }
+
+// Determine alignment between tone composite and market
+function getAlignment(toneScore, cuts) {
+  const marketDove = cuts > 1;   // market pricing >1 cut = market leaning dove
+  const marketHawk = cuts <= 0;  // no cuts = market leaning hawk
+  const toneDove = toneScore < -15;
+  const toneHawk = toneScore > 15;
+
+  if ((toneDove && marketDove) || (toneHawk && marketHawk)) {
+    const strength = Math.abs(toneScore) > 30 && Math.abs(cuts) > 1 ? 'Strong' : 'Moderate';
+    return { label: strength + ' Alignment', cls: 'dove', aligned: true };
+  }
+  if ((toneDove && marketHawk) || (toneHawk && marketDove)) {
+    return { label: 'Divergence ⚡', cls: 'hawk', aligned: false };
+  }
+  return { label: 'Broadly Aligned', cls: 'neut', aligned: true };
+}
+
+function renderMarketSignals() {
+  initMsDate();
+  const snaps = allSnapshots();
+  const composite = computeComposite(); // [{date, score}]
+
+  // ── KPI bar ──────────────────────────────────────────────────
+  const latest = snaps[snaps.length - 1];
+  const latestTone = composite.length ? composite[composite.length-1].score : null;
+  const latestCuts = rateToCuts(latest.yearEndRate);
+  const align = latestTone !== null ? getAlignment(latestTone, latestCuts) : null;
+  const colorMap = { hawk: 'var(--hawk)', dove: 'var(--dove)', neut: 'var(--neut)' };
+
+  const kpis = document.getElementById('msTopBar');
+  if (kpis) {
+    const cutC = latest.cutPct > 50 ? 'var(--dove)' : latest.cutPct > 25 ? 'var(--accent)' : 'var(--dim)';
+    const holdC = latest.holdPct > 60 ? 'var(--neut)' : 'var(--dim)';
+    kpis.innerHTML = `
+      <div class="ms-kpi"><div class="ms-kpi-val" style="color:${cutC}">${latest.cutPct}%</div><div class="ms-kpi-lbl">Next Mtg Cut</div><div class="ms-kpi-sub">${fmtMeeting(latest.nextMeeting)}</div></div>
+      <div class="ms-kpi"><div class="ms-kpi-val" style="color:${holdC}">${latest.holdPct}%</div><div class="ms-kpi-lbl">Next Mtg Hold</div><div class="ms-kpi-sub">Unchanged</div></div>
+      <div class="ms-kpi"><div class="ms-kpi-val" style="color:${latestCuts>0?'var(--dove)':latestCuts<0?'var(--hawk)':'var(--neut)'}">${latestCuts>0?latestCuts+' cut'+(latestCuts!==1?'s':''):latestCuts<0?Math.abs(latestCuts)+' hike'+(latestCuts!==-1?'s':''):'Hold'}</div><div class="ms-kpi-lbl">Year-End Implied</div><div class="ms-kpi-sub">${latest.yearEndRate}% target</div></div>
+      <div class="ms-kpi"><div class="ms-kpi-val" style="color:${latestTone!==null?gc(latestTone):'var(--dim2)'}">${latestTone!==null?(latestTone>0?'+':'')+latestTone:'—'}</div><div class="ms-kpi-lbl">FOMC Composite</div><div class="ms-kpi-sub">${latestTone!==null?gl(latestTone):'Score speeches first'}</div></div>
+      <div class="ms-kpi"><div class="ms-kpi-val" style="color:${align?colorMap[align.cls]:'var(--dim2)'};font-size:1rem">${align?align.label:'—'}</div><div class="ms-kpi-lbl">Tone vs Market</div><div class="ms-kpi-sub">${align?(align.aligned?'Consistent signal':'⚡ Conflicting signal'):'Add scores'}</div></div>
+    `;
+  }
+
+  // ── Overlay chart ─────────────────────────────────────────────
+  buildOverlayChart(snaps, composite);
+
+  // ── Meeting probability bars ──────────────────────────────────
+  const meetingBody = document.getElementById('msMeetingBody');
+  const meetingSource = document.getElementById('msMeetingSource');
+  if (meetingBody) {
+    meetingSource.textContent = `As of ${fmtDate(latest.date)} · Source: CME FedWatch${latest.userAdded?' (user)':''}`;
+    // Group unique meetings from last 5 snapshots
+    const recentMeetings = [...new Set(snaps.slice(-6).map(s=>s.nextMeeting))].slice(0,5);
+    const byMeeting = {};
+    recentMeetings.forEach(m => {
+      const forThis = snaps.filter(s=>s.nextMeeting===m);
+      byMeeting[m] = forThis[forThis.length-1]; // latest snapshot for this meeting
+    });
+    meetingBody.innerHTML = Object.entries(byMeeting).map(([meeting, snap]) => `
+      <div class="ms-meeting">
+        <div class="ms-meeting-date">${fmtMeeting(meeting)}</div>
+        <div class="ms-meeting-bars">
+          ${probBar('CUT −25bp', snap.cutPct, 'var(--dove)')}
+          ${probBar('HOLD', snap.holdPct, 'var(--neut)')}
+          ${snap.hikePct > 0 ? probBar('HIKE +25bp', snap.hikePct, 'var(--hawk)') : ''}
+        </div>
+      </div>`).join('');
+  }
+
+  // ── Divergence analysis ───────────────────────────────────────
+  buildDivergencePanel(snaps, composite);
+
+  // ── Entries list (user additions) ────────────────────────────
+  renderEntriesList();
+}
+
+function probBar(label, pct, color) {
+  const numPct = Math.round(pct);
+  const pctC = numPct > 60 ? color : numPct > 30 ? 'var(--accent)' : 'var(--dim)';
+  return `<div class="ms-prob-row">
+    <span class="ms-prob-label">${label}</span>
+    <div class="ms-prob-track"><div class="ms-prob-fill" style="width:${numPct}%;background:${color}99"></div></div>
+    <span class="ms-prob-pct" style="color:${pctC}">${numPct}%</span>
+  </div>`;
+}
+
+function fmtMeeting(dateStr) {
+  return new Date(dateStr+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+function fmtDate(dateStr) {
+  return new Date(dateStr+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+function buildOverlayChart(snaps, composite) {
+  const canvas = document.getElementById('msOverlayChart');
+  if (!canvas) return;
+  if (msChartInstance) { msChartInstance.destroy(); msChartInstance = null; }
+
+  // Build aligned time series: for each composite point find nearest snapshot
+  // and convert market cuts to tone-equivalent scale
+  const allDates = [...new Set([
+    ...snaps.map(s=>s.date),
+    ...composite.map(c=>c.date)
+  ])].sort();
+
+  // Resample: for each date, get tone (latest composite on or before) and market signal (latest snap on or before)
+  const pts = [];
+  for (const d of allDates) {
+    if (d < '2024-09-01') continue; // only from cutting cycle start
+    const toneSnaps = composite.filter(c=>c.date<=d);
+    const mktSnaps = snaps.filter(s=>s.date<=d);
+    if (!toneSnaps.length || !mktSnaps.length) continue;
+    const tone = toneSnaps[toneSnaps.length-1].score;
+    const mkt = mktSnaps[mktSnaps.length-1];
+    const mktScore = cutsToToneScale(rateToCuts(mkt.yearEndRate));
+    const cutPct = mkt.cutPct; // next meeting cut probability
+    pts.push({ d, tone, mktScore, cutPct });
+  }
+
+  const labels = pts.map(p => p.d.slice(5)); // MM-DD
+  const HAWK = '#d9542b', DOVE = '#2b8fc4', ACCENT = '#e8b84b', NEUT = '#6b7a94';
+  const BG = '#080b10', BORDER = '#1f2736', DIM = '#5a6880';
+
+  msChartInstance = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'FOMC Tone Composite',
+          data: pts.map(p=>p.tone),
+          borderColor: p => p.raw > 10 ? HAWK : p.raw < -10 ? DOVE : NEUT,
+          borderColor: DOVE,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.3,
+          fill: false,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Market-Implied Cuts (tone-scaled)',
+          data: pts.map(p=>p.mktScore),
+          borderColor: ACCENT,
+          borderWidth: 2,
+          borderDash: [5,3],
+          pointRadius: 2,
+          pointBackgroundColor: ACCENT,
+          tension: 0.2,
+          fill: false,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Next Mtg Cut Probability',
+          data: pts.map(p=>p.cutPct - 50), // centre on 0: >0 = market expects cut
+          borderColor: '#3daa6e',
+          borderWidth: 1.5,
+          borderDash: [2,4],
+          pointRadius: 0,
+          tension: 0.2,
+          fill: false,
+          yAxisID: 'y2',
+        },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 400 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: true,
+          labels: { color: DIM, font: { family: 'IBM Plex Mono', size: 9 }, boxWidth: 12, padding: 10 }
+        },
+        tooltip: {
+          backgroundColor: '#0f1319',
+          borderColor: BORDER, borderWidth: 1,
+          titleColor: '#cdd5e0', bodyColor: DIM,
+          titleFont: { family: 'IBM Plex Mono', size: 9 },
+          bodyFont: { family: 'IBM Plex Mono', size: 9 },
+        }
+      },
+      scales: {
+        x: { ticks: { color: DIM, font:{family:'IBM Plex Mono',size:8}, maxTicksLimit:10 }, grid: { color: BORDER } },
+        y: {
+          position:'left', title:{ display:true, text:'Tone Score', color:DIM, font:{family:'IBM Plex Mono',size:8} },
+          ticks:{ color:DIM, font:{family:'IBM Plex Mono',size:8} }, grid:{ color:BORDER },
+          min:-70, max:70
+        },
+        y2: {
+          position:'right', title:{ display:true, text:'Cut Prob − 50%', color:'#3daa6e66', font:{family:'IBM Plex Mono',size:8} },
+          ticks:{ color:'#3daa6e66', font:{family:'IBM Plex Mono',size:8} }, grid:{ display:false },
+          min:-55, max:55
+        }
+      }
+    }
+  });
+}
+
+function buildDivergencePanel(snaps, composite) {
+  const body = document.getElementById('msInsightBody');
+  if (!body) return;
+  if (!composite.length) { body.innerHTML = '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.65rem;color:var(--dim);text-align:center;padding:20px">Score speeches to see alignment analysis</div>'; return; }
+
+  // Find major divergence moments: where tone and market move in opposite directions
+  const pts = snaps.map(s => {
+    const toneSnaps = composite.filter(c=>c.date<=s.date);
+    if (!toneSnaps.length) return null;
+    return { date: s.date, tone: toneSnaps[toneSnaps.length-1].score, cuts: rateToCuts(s.yearEndRate), cutPct: s.cutPct, notes: s.notes };
+  }).filter(Boolean);
+
+  if (pts.length < 2) { body.innerHTML = '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.65rem;color:var(--dim);text-align:center;padding:20px">Need more data points for analysis</div>'; return; }
+
+  // Compute correlation coefficient between tone and market cuts
+  const n = pts.length;
+  const toneArr = pts.map(p=>p.tone), cutsArr = pts.map(p=>p.cuts);
+  const meanT = toneArr.reduce((a,b)=>a+b,0)/n, meanC = cutsArr.reduce((a,b)=>a+b,0)/n;
+  const num = pts.reduce((s,p)=>(s + (p.tone-meanT)*(p.cuts-meanC)),0);
+  const denT = Math.sqrt(pts.reduce((s,p)=>s+(p.tone-meanT)**2,0));
+  const denC = Math.sqrt(pts.reduce((s,p)=>s+(p.cuts-meanC)**2,0));
+  const corr = (denT*denC) ? num/(denT*denC) : 0;
+  // Tone and cuts should be negatively correlated: more dovish tone = more cuts
+  const corrDisplay = (-corr).toFixed(2); // flip sign: positive = aligned
+  const corrColor = +corrDisplay > 0.4 ? 'var(--dove)' : +corrDisplay < -0.2 ? 'var(--hawk)' : 'var(--accent)';
+  const corrLabel = +corrDisplay > 0.5 ? 'Strong alignment' : +corrDisplay > 0.2 ? 'Moderate alignment' : +corrDisplay > -0.1 ? 'Weak alignment' : 'Diverging signals';
+
+  // Latest divergence check
+  const last = pts[pts.length-1];
+  const prev = pts[pts.length-2];
+  const toneDir = last.tone - prev.tone; // positive = hawkish shift
+  const mktDir = last.cuts - prev.cuts;   // positive = more cuts expected = dovish
+  const diverging = (toneDir > 3 && mktDir > 0.3) || (toneDir < -3 && mktDir < -0.3);
+  const toneShiftLabel = Math.abs(toneDir) < 2 ? 'flat' : toneDir > 0 ? `+${toneDir.toFixed(0)} (hawkish shift)` : `${toneDir.toFixed(0)} (dovish shift)`;
+  const mktShiftLabel = Math.abs(mktDir) < 0.2 ? 'flat' : mktDir > 0 ? `+${mktDir.toFixed(1)} cuts more priced` : `${mktDir.toFixed(1)} cuts less priced`;
+
+  body.innerHTML = `
+    <div class="ms-corr-row">
+      <span class="ms-corr-label">Tone–Market Correlation</span>
+      <span class="ms-corr-val" style="color:${corrColor}">${corrDisplay > 0 ? '+' : ''}${corrDisplay}</span>
+    </div>
+    <div class="ms-corr-row">
+      <span class="ms-corr-label">Signal Quality</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:${corrColor}">${corrLabel}</span>
+    </div>
+    <div class="ms-corr-row">
+      <span class="ms-corr-label">Recent Tone Shift</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:${toneDir>2?'var(--hawk)':toneDir<-2?'var(--dove)':'var(--neut)'}">${toneShiftLabel}</span>
+    </div>
+    <div class="ms-corr-row">
+      <span class="ms-corr-label">Recent Market Shift</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:${mktDir>0.2?'var(--dove)':mktDir<-0.2?'var(--hawk)':'var(--neut)'}">${mktShiftLabel}</span>
+    </div>
+    <div class="ms-corr-row" style="padding-top:8px;margin-top:4px;border-top:1px solid var(--border)">
+      <span class="ms-corr-label">Current Signal</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:${diverging?'var(--hawk)':'var(--dove)'}">${diverging?'⚡ DIVERGENCE':'✓ CONSISTENT'}</span>
+    </div>
+    <div style="margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim);line-height:1.7;border-top:1px solid var(--border);padding-top:8px">
+      ${last.notes?`Latest: ${last.notes}`:''}
+      <br>Composite: <span style="color:${gc(last.tone)}">${last.tone>0?'+':''}${last.tone} (${gl(last.tone)})</span> · Market: ${last.cuts>0?last.cuts+' cut'+(last.cuts!==1?'s':''):last.cuts<0?Math.abs(last.cuts)+' hike(s)':'Hold priced'}
+    </div>
+    <div class="ms-data-notice" style="margin-top:10px">Correlation = how consistently FOMC tone leads or matches market pricing. +1.0 = perfectly aligned. Add more snapshots over time to improve signal.</div>
+  `;
+}
+
+function renderEntriesList() {
+  const list = document.getElementById('msEntriesList');
+  if (!list) return;
+  if (!userSnapshots.length) {
+    list.innerHTML = '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:.6rem;color:var(--dim2);text-align:center;padding:12px 0">No snapshots saved yet</div>';
+    return;
+  }
+  list.innerHTML = userSnapshots.map((s,i) => {
+    const cuts = rateToCuts(s.yearEndRate);
+    const c = s.cutPct > 50 ? 'var(--dove)' : s.hikePct > 30 ? 'var(--hawk)' : 'var(--neut)';
+    return `<div class="ms-entry-item">
+      <div class="ms-entry-dot" style="background:${c}"></div>
+      <div class="ms-entry-info">
+        <div class="ms-entry-date">${fmtDate(s.date)}</div>
+        <div class="ms-entry-vals">Cut ${s.cutPct}% / Hold ${s.holdPct}%${s.hikePct?` / Hike ${s.hikePct}%`:''}<br>Dec: ${s.yearEndRate}% (${cuts>0?cuts+' cut'+(cuts!==1?'s':''):cuts<0?Math.abs(cuts)+' hike(s)':'hold'})</div>
+        ${s.notes?`<div class="ms-entry-date">${s.notes}</div>`:''}
+      </div>
+      <button class="ms-delete-btn" onclick="deleteMsEntry(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// CHAT TAB
+// ════════════════════════════════════════════════════════════
+let chatHistory = [];
+let chatKey = '';
+let chatReady = false;
+
+function buildFomcContext() {
+  // Pull live scored data if available, fall back to MEMBERS static data
+  const scoredMembers = MEMBERS.map(m => {
+    const mSpeeches = (data[m.id] || []).filter(s => s.score !== undefined && s.score !== null);
+    const recent = mSpeeches.slice(-5);
+    const avg = recent.length ? Math.round(recent.reduce((a,s)=>a+s.score,0)/recent.length) : null;
+    const trend = recent.length >= 2
+      ? (recent[recent.length-1].score - recent[0].score > 5 ? '↑ hawking' :
+         recent[recent.length-1].score - recent[0].score < -5 ? '↓ doving' : '→ stable')
+      : 'insufficient data';
+    const lastSpeech = mSpeeches[mSpeeches.length-1];
+    return {
+      name: m.name,
+      role: m.role,
+      voter2026: m.voter2026,
+      weight: m.weight,
+      sepDot: m.sepDot,
+      latestScore: avg,
+      trend,
+      totalSpeeches: mSpeeches.length,
+      lastSpeechDate: lastSpeech?.date || 'N/A',
+      lastSpeechTitle: lastSpeech?.title || 'N/A',
+      evidence: m.evidence,
+      dissent: m.dissent || 'none',
+    };
+  });
+
+  // Compute composite
+  const scoredVoters = scoredMembers.filter(m => m.voter2026 && m.latestScore !== null);
+  const composite = scoredVoters.length
+    ? Math.round(scoredVoters.reduce((a,m)=>a+(m.latestScore*m.weight),0) / scoredVoters.reduce((a,m)=>a+m.weight,0))
+    : null;
+
+  const memberLines = scoredMembers.map(m =>
+    `${m.name} | ${m.role} | voter:${m.voter2026} | wt:${m.weight} | SEP dot:${m.sepDot}% | score:${m.latestScore!==null?(m.latestScore>0?'+':'')+m.latestScore:'unscored'} | trend:${m.trend} | ${m.totalSpeeches} speeches | last:${m.lastSpeechDate} — "${m.lastSpeechTitle}" | evidence: ${m.evidence}`
+  ).join('\n');
+
+  // SEP distribution
+  const sepLines = SEP_DOTS.map(d => `${d.rate}% (${d.cuts>0?d.cuts+' cuts':d.cuts===0?'hold':Math.abs(d.cuts)+' hike(s)'}) — ${d.count} dots — ${d.desc}`).join('\n');
+
+  return `You are a senior macro analyst at Citadel with direct access to the FOMC Tone Tracker database. You have comprehensive data on all 21 Federal Reserve officials including their scored speeches, tone trajectories, SEP dot plot assignments, and voting status.
+
+SCORING SCALE: -100 (maximally dovish) to +100 (maximally hawkish). Neutral = 0. >25 = hawkish, <-25 = dovish.
+THREE COMPONENTS: Stance (policy vs neutral rate), Balance (inflation vs labor emphasis), Direction (rate path signal).
+NEUTRAL RATE FRAMEWORK: Fed neutral rate estimated at 3.0%. Current rate 3.625% midpoint = +62.5bps above neutral = "modestly restrictive".
+
+FOMC COMPOSITE SCORE: ${composite !== null ? (composite>0?'+':'')+composite : 'Not yet scored — ask user to score speeches first'}
+2026 VOTER COMPOSITE: Based on weighted scores of 2026 voting members.
+
+ALL 21 OFFICIALS — FULL DATA
+=============================
+${memberLines}
+
+DEC 2025 SEP DOT DISTRIBUTION
+===============================
+${sepLines}
+
+KEY CONTEXT:
+- March 2026 FOMC meeting: policy decision expected to be HOLD (rates unchanged at 4.25-4.50%)
+- Blackout period begins ~10 days before each meeting
+- 2026 voters: Powell, Jefferson, Williams, Waller, Bowman, Kugler, Cook, Barr, Miran, Goolsbee, Schmid, Hammack
+- Bowman dissented in favor of a smaller cut in Sep 2024 — only dissent in recent memory
+- Tariff uncertainty and sticky services inflation are key upside risks to the baseline
+
+Answer questions analytically and precisely. Cite specific scores, dates, and member names from the data. When ranking officials, give ordered lists. When writing meeting previews, give structured professional analysis with a clear base case, risks, and press conference tone assessment.`;
+}
+
+function initChat() {
+  if (chatReady) return;
+  chatReady = true;
+  const badge = document.getElementById('chatBadge');
+  const total = MEMBERS.reduce((a,m) => a + (data[m.id]||[]).filter(s=>s.score!==undefined).length, 0);
+  badge.textContent = `Context loaded: ${MEMBERS.length} officials · ${total} scored speeches · Dec 2025 SEP`;
+}
+
+function saveChatKey() {
+  chatKey = document.getElementById('chatKey').value.trim();
+  const el = document.getElementById('chatKeySaved');
+  el.style.display = 'inline';
+  setTimeout(()=>el.style.display='none', 2000);
+}
+
+function useSug(el) {
+  document.getElementById('chatInput').value = el.textContent;
+  document.getElementById('chatSugs').style.display = 'none';
+  sendChat();
+}
+
+function appendMsg(role, text) {
+  const msgs = document.getElementById('chatMsgs');
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  const avatar = role === 'user' ? 'YOU' : '🏦';
+  const formatted = text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(new RegExp(String.fromCharCode(96)+'([^'+String.fromCharCode(96)+']+)'+String.fromCharCode(96),'g'), '<em>$1</em>')
+    .replace(/\n/g, '<br>');
+  div.innerHTML = `<div class="chat-avatar">${avatar}</div><div class="chat-bubble">${formatted}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function appendTyping() {
+  const msgs = document.getElementById('chatMsgs');
+  const div = document.createElement('div');
+  div.className = 'chat-msg assistant';
+  div.id = 'chatTyping';
+  div.innerHTML = `<div class="chat-avatar">🏦</div><div class="chat-bubble"><div class="chat-typing"><span></span><span></span><span></span></div></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const btn   = document.getElementById('chatSendBtn');
+  const text  = input.value.trim();
+  if (!text) return;
+
+  chatKey = (document.getElementById('chatKey').value || chatKey).trim();
+  if (!chatKey) { alert('Enter your Anthropic API key above first.'); return; }
+
+  document.getElementById('chatSugs').style.display = 'none';
+  input.value = '';
+  btn.disabled = true;
+
+  appendMsg('user', text);
+  chatHistory.push({ role: 'user', content: text });
+  appendTyping();
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': chatKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        system: buildFomcContext(),
+        messages: chatHistory,
+      }),
+    });
+    const d = await res.json();
+    document.getElementById('chatTyping')?.remove();
+
+    if (d.error) {
+      appendMsg('assistant', '❌ API error: ' + d.error.message);
+      chatHistory.pop();
+    } else {
+      const reply = d.content[0].text;
+      chatHistory.push({ role: 'assistant', content: reply });
+      appendMsg('assistant', reply);
+    }
+  } catch(e) {
+    document.getElementById('chatTyping')?.remove();
+    appendMsg('assistant', '❌ Request failed: ' + e.message);
+    chatHistory.pop();
+  }
+
+  btn.disabled = false;
+  input.focus();
+}
+
+
+</script>
