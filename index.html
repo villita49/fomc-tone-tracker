@@ -1572,7 +1572,7 @@ function renderTimeline(){
             <div class="sc-row"><span class="sc-lbl">BALANCE</span><span class="sc-val" style="color:${gc(sp.balance)}">${sp.balance>0?'+':''}${sp.balance}</span></div>
             <div class="sc-row"><span class="sc-lbl">DIRECTION</span><span class="sc-val" style="color:${gc(sp.direction)}">${sp.direction>0?'+':''}${sp.direction}</span></div>
           </div>
-          ${sp.reason?`<div class="tl-reason">${sp.reason}</div>`:''}
+          ${(()=>{const r=(!sp.reason||/heuristic|manual supplement|unavailable/i.test(sp.reason))?generateReason(sp.text||sp.title||'',sp.score,sp.stance,sp.balance,sp.direction,selected?MEMBERS.find(m=>m.id===selected)?.name:''):sp.reason;return r?`<div class="tl-reason">${r}</div>`:''})()}
           ${kwHtml?`<div class="tl-kws">${kwHtml}</div>`:''}
         </div>
       </div>
@@ -2359,6 +2359,87 @@ const NEUT_SIGNALS = [
 ];
 
 // Find the single most-signal-dense sentence in a text
+// Generate a precise analytical reason sentence from speech text + score components
+function generateReason(text, score, stance, balance, direction, memberName) {
+  if (!text || text.length < 40) return '';
+  const t = text.toLowerCase();
+  const name = (memberName || 'Speaker').split(' ').pop();
+
+  // ── Stance phrase ──
+  let stancePhrase;
+  if (/significantly restrictive|substantially restrictive|well above neutral|meaningfully above neutral/.test(t))
+    stancePhrase = 'characterises policy as significantly restrictive';
+  else if (/moderately restrictive/.test(t))
+    stancePhrase = 'characterises policy as moderately restrictive';
+  else if (/modestly restrictive/.test(t))
+    stancePhrase = 'characterises policy as modestly restrictive';
+  else if (/near neutral|close to neutral|at or near neutral|already at neutral/.test(t))
+    stancePhrase = 'sees policy near neutral';
+  else if (/not restrictive|insufficiently restrictive|not overly restrictive/.test(t))
+    stancePhrase = 'questions whether policy is sufficiently restrictive';
+  else if ((stance||0) < -40)
+    stancePhrase = 'views policy as significantly above neutral';
+  else if ((stance||0) < -20)
+    stancePhrase = 'views policy as moderately restrictive relative to neutral';
+  else if ((stance||0) < -5)
+    stancePhrase = 'views policy as modestly restrictive';
+  else if ((stance||0) > 30)
+    stancePhrase = 'views policy as near or insufficiently restrictive';
+  else if ((stance||0) > 10)
+    stancePhrase = 'views policy as at or approaching neutral';
+  else
+    stancePhrase = 'characterises the current policy stance as broadly appropriate';
+
+  // ── Risk balance phrase ──
+  const hawkWords = ['inflation too high','inflation remains elevated','sticky inflation',
+    'price pressures persist','tariff','upside risk to inflation','above target',
+    'services inflation','inflation persistence','inflation expectations'];
+  const doveWords = ['labor market','employment','labor fragility','hiring','job growth',
+    'weakening','cooling labor','fragile','unemployment','layoffs'];
+  const hHits = hawkWords.filter(w => t.includes(w));
+  const dHits = doveWords.filter(w => t.includes(w));
+
+  let riskPhrase = '';
+  if (hHits.length > dHits.length + 1)
+    riskPhrase = `emphasising ${hHits[0]} as the primary risk`;
+  else if (dHits.length > hHits.length + 1)
+    riskPhrase = `flagging ${dHits[0]} weakness as the dominant risk`;
+  else if (hHits.length > 0 && dHits.length > 0)
+    riskPhrase = 'balancing upside inflation and labour market risks';
+  else if ((balance||0) > 25)
+    riskPhrase = 'weighted toward inflation as the primary concern';
+  else if ((balance||0) < -25)
+    riskPhrase = 'weighted toward labour market as the primary concern';
+
+  // ── Rate path phrase ──
+  let pathPhrase = '';
+  if (/no hurry|do not need to rush|not in a rush|can afford to be patient|well.positioned to wait/.test(t))
+    pathPhrase = 'signals no urgency to adjust rates';
+  else if (/hold rates|remain on hold|pause|keep rates unchanged/.test(t))
+    pathPhrase = 'implies rates should remain on hold';
+  else if (/continue cutting|continue to cut|further cuts|case for cutting|more aggressive easing|more easing/.test(t))
+    pathPhrase = 'advocates for continued rate cuts';
+  else if (/case for cutting is strong|strong case for easing/.test(t))
+    pathPhrase = 'makes a strong case for further easing';
+  else if (/gradual|measured|careful|meeting by meeting|step by step/.test(t))
+    pathPhrase = 'favours a gradual, data-driven approach';
+  else if (/data.depend|incoming data|evolving outlook/.test(t))
+    pathPhrase = 'stresses data dependence on the rate path';
+  else if (/restrictive for longer|higher for longer/.test(t))
+    pathPhrase = 'leans toward keeping rates restrictive for longer';
+  else if ((direction||0) < -30)
+    pathPhrase = 'leans toward further easing';
+  else if ((direction||0) > 30)
+    pathPhrase = 'leans toward holding or tightening';
+
+  // ── Compose ──
+  const parts = [stancePhrase, riskPhrase, pathPhrase].filter(Boolean);
+  let sentence = name + ' ' + parts[0];
+  if (parts[1]) sentence += ', ' + parts[1];
+  if (parts[2]) sentence += ', ' + parts[2];
+  return sentence + '.';
+}
+
 function findKeyStatement(text, direction) {
   // Split into sentences
   const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
@@ -2426,13 +2507,19 @@ function renderKeyQuotes() {
       const keyStatement = findKeyStatement(corpusEntry.text, latest.score);
       const highlighted = highlightStatement(keyStatement, latest.score);
 
+      // Generate a real analytical reason from text — overrides any generic stored reason
+      const isGeneric = !latest.reason || /heuristic|manual supplement|unavailable/i.test(latest.reason);
+      const reason = isGeneric
+        ? generateReason(corpusEntry.text, latest.score, latest.stance, latest.balance, latest.direction, m.name)
+        : latest.reason;
+
       return {
         m,
         score: latest.score,
         stance: latest.stance ?? null,
         balance: latest.balance ?? null,
         direction: latest.direction ?? null,
-        reason: latest.reason || '',
+        reason,
         keywords: latest.keywords || [],
         date: corpusEntry.date,
         title: corpusEntry.title,
