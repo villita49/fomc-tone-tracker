@@ -741,16 +741,11 @@ const MEMBERS = [
     evidence:'Speeches measured and balanced. Voted for all 2025 cuts. Median assignment consistent with centrist tone and limited explicit guidance on pace.',
     dissent:null },
 
-  { id:'kugler',   name:'Adriana Kugler',   ini:'AK', color:'#e8786a',
-    role:'Governor · Governors',             voter2026:false, weight:2.0,
-    sepDot:3.125, conf:3,
-    evidence:'Nov 2025 speech showed concern about softening for lower-income households. Supported all cuts; speeches lean somewhat dovish relative to median.',
-    dissent:null },
 
   { id:'miran',    name:'Stephen Miran',    ini:'SM', color:'#f0a830',
-    role:'Governor · Governors',             voter2026:false, weight:2.0,
+    role:'Governor · Governors',             voter2026:true,  weight:2.0,
     sepDot:2.125, conf:5,
-    evidence:'HARD DISSENT (Dec 2025): voted for 50bp cut. Bondsavvy analysis identifies him as the lone dot at 2.00–2.25% (−150bp / 6 cuts). Strongest dove on committee.',
+    evidence:'All Fed Governors are permanent FOMC voters. Confirmed Nov 2024. HARD DISSENT (Dec 2025): voted for 50bp cut. Lone dot at 2.00–2.25% (−150bp / 6 cuts). Strongest dove on committee.',
     dissent:'dovish' },
 
   { id:'bowman',   name:'Michelle Bowman',  ini:'MB2',color:'#c46ae0',
@@ -1878,8 +1873,8 @@ function showOverview(){
   selected=null; chart=null; compositeChart=null;
 
   // Group members for display
-  const govVoters=MEMBERS.filter(m=>['powell','jefferson','waller','cook','barr','bowman'].includes(m.id));
-  const govNonVoter=MEMBERS.filter(m=>['kugler','miran'].includes(m.id));
+  const govVoters=MEMBERS.filter(m=>['powell','jefferson','waller','cook','barr','bowman','miran'].includes(m.id));
+  const govNonVoter=[];  // Kugler departed Jan 2025; Miran is a voting Governor
   const nyFed=MEMBERS.filter(m=>m.id==='williams');
   const bankVoters=MEMBERS.filter(m=>m.voter2026&&m.weight===1.5);
   const bankNonVoters=MEMBERS.filter(m=>!m.voter2026&&m.weight===1.0);
