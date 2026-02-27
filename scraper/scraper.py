@@ -440,6 +440,7 @@ def is_duplicate(corpus: dict, url: str) -> bool:
 # MAIN PIPELINE
 # ══════════════════════════════════════════════════════════════
 def run():
+    global LOOKBACK_DAYS  # must be at top of function
     log.info("=" * 60)
     log.info(f"FOMC Tone Scraper — {datetime.utcnow().isoformat()}")
     log.info(f"Model: {SCORE_MODEL}")
@@ -450,7 +451,6 @@ def run():
     log.info(f"Existing corpus: {existing_count} speeches across {len(corpus)} members")
 
     # Set lookback to cover from newest speech in corpus to today
-    # This ensures we only fetch speeches not already in corpus
     if existing_count > 0:
         all_dates = [
             sp["date"] for speeches in corpus.values()
@@ -462,8 +462,6 @@ def run():
             effective_lookback = max(days_since, LOOKBACK_DAYS)
             log.info(f"Newest speech in corpus: {newest} ({days_since} days ago)")
             log.info(f"Effective lookback: {effective_lookback} days")
-            # Override global lookback
-            global LOOKBACK_DAYS
             LOOKBACK_DAYS = effective_lookback
 
     # Collect from all sources
