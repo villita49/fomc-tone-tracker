@@ -2904,6 +2904,36 @@
         "reason": "Heuristic pre-score",
         "keywords": []
       }
+    },
+    {
+      "date": "2026-02-19",
+      "title": "Q&A with Neel Kashkari at the Midwest Economic Outlook Summit",
+      "venue": "",
+      "url": "https://www.minneapolisfed.org/speeches/2026/neel-kashkari-at-the-midwest-economic-outlook-summit",
+      "url_hash": "3e0d1df00eec",
+      "source": "minneapolis",
+      "text": "Q&A with Neel Kashkari at the Midwest Economic Outlook Summit February 19, 2026 | 8:05\u20138:55 a.m. CT Fargo , North Dakota Neel Kashkari President and CEO Q&A with Neel Kashkari at the Midwest Economic Outlook Summit Share Facebook LinkedIn Twitter Your browser does not support the audio element. Full Event ( video ) Neel Kashkari, president of the Federal Reserve Bank of Minneapolis, participates in a conversation with Jim Ryan, chairman and CEO of Old National Bank, at the 2026 Midwest Economic Outlook Summit in Fargo, North Dakota. The summit is hosted by the Fargo Moorhead West Fargo Chamber of Commerce. Sign up for news and events Sign up for emails to get the latest news, research, and information from the Federal Reserve Bank of Minneapolis",
+      "score": 0,
+      "stance": 0,
+      "balance": 0,
+      "direction": 0,
+      "reason": "No substantive policy content available in the provided text - only event metadata and promotional information without any actual speech content or Q&A responses from Kashkari to evaluate against the 137.5bps restrictive stance framework.",
+      "keywords": [
+        {
+          "word": "No policy content",
+          "type": "neutral"
+        },
+        {
+          "word": "Event announcement only",
+          "type": "neutral"
+        },
+        {
+          "word": "No rate path signal",
+          "type": "neutral"
+        }
+      ],
+      "model": "claude-sonnet-4-5",
+      "scraped_at": "2026-02-27T08:52:58.710553"
     }
   ],
   "collins": [
