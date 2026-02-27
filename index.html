@@ -1702,51 +1702,37 @@ function initCompositeChart(series) {
 
   const dates  = series.map(s => s.date);
   const scores = series.map(s => s.score);
-  const ffr    = dates.map(d => rateAtDate(d));
 
-  // ── Normalized dual-axis scaling ──
-  // Both lines get the same fraction of vertical chart space so they
-  // visually track each other rather than one line being squashed.
-  const sMin = Math.min(...scores), sMax = Math.max(...scores);
-  const fMin = Math.min(...ffr),    fMax = Math.max(...ffr);
-
-  // Tone axis: symmetric around 0 (neutral), padded 25%
-  const toneHalf     = Math.max(Math.abs(sMin), Math.abs(sMax));
-  const tonePad      = Math.max(toneHalf * 0.25, 5);
-  const yToneMin     = -(toneHalf + tonePad);
-  const yToneMax     =  (toneHalf + tonePad);
-
-  // FFR axis: scaled so FFR data uses the same % of axis height as tone data
-  const toneSpan     = yToneMax - yToneMin;                // total tone axis range
-  const toneDataFrac = (sMax - sMin) / toneSpan;           // fraction used by data
-  const fRange       = Math.max(fMax - fMin, 0.25);        // at least 25bp range
-  const fCenter      = (fMax + fMin) / 2;
-  const fHalf        = (fRange / 2) / toneDataFrac;        // match same fraction
-  const yFFRMin      = fCenter - fHalf;
-  const yFFRMax      = fCenter + fHalf;
+  const sAbs = Math.max(Math.abs(Math.min(...scores)), Math.abs(Math.max(...scores)));
+  const pad  = Math.max(Math.ceil(sAbs * 0.30), 6);
+  const yMin = -(sAbs + pad);
+  const yMax =  (sAbs + pad);
 
   const ctx = el.getContext('2d');
 
-  // ── FOMC meeting lines + neutral line plugin ──
+  const grad = ctx.createLinearGradient(0, 0, 0, 220);
+  grad.addColorStop(0,   'rgba(217,84,43,0.18)');
+  grad.addColorStop(0.5, 'rgba(107,122,148,0.03)');
+  grad.addColorStop(1,   'rgba(43,143,196,0.18)');
+
   const annotPlugin = {
     id: 'annot',
     afterDraw(chart) {
       const {ctx: c, chartArea: ca, scales} = chart;
-      const xScale = scales.x, yScale = scales.yTone;
+      const xScale = scales.x;
+      const yScale = scales.y;
       if (!xScale || !yScale) return;
 
-      // Neutral zero line
       const y0 = yScale.getPixelForValue(0);
       if (y0 >= ca.top && y0 <= ca.bottom) {
         c.save();
-        c.strokeStyle = 'rgba(255,255,255,0.10)';
+        c.strokeStyle = 'rgba(255,255,255,0.12)';
         c.lineWidth = 1;
         c.setLineDash([4, 5]);
         c.beginPath(); c.moveTo(ca.left, y0); c.lineTo(ca.right, y0); c.stroke();
         c.restore();
       }
 
-      // FOMC meeting vertical lines
       FOMC_MEETINGS.forEach(md => {
         let idx = -1;
         for (let i = 0; i < dates.length; i++) {
@@ -1756,7 +1742,7 @@ function initCompositeChart(series) {
         const xpx = xScale.getPixelForValue(idx);
         if (xpx < ca.left || xpx > ca.right) return;
         c.save();
-        c.strokeStyle = 'rgba(232,184,75,0.25)';
+        c.strokeStyle = 'rgba(232,184,75,0.35)';
         c.lineWidth = 1;
         c.setLineDash([3, 4]);
         c.beginPath(); c.moveTo(xpx, ca.top); c.lineTo(xpx, ca.bottom); c.stroke();
@@ -1770,37 +1756,19 @@ function initCompositeChart(series) {
     plugins: [annotPlugin],
     data: {
       labels: dates,
-      datasets: [
-        {
-          label: 'FOMC Tone',
-          yAxisID: 'yTone',
-          data: scores,
-          borderColor: '#e8b84b',
-          borderWidth: 2,
-          backgroundColor: 'transparent',
-          fill: false,
-          tension: 0.3,
-          pointRadius: scores.map((v, i) => i === scores.length - 1 ? 5 : (Math.abs(v) > 12 ? 3 : 1.5)),
-          pointBackgroundColor: scores.map(gc),
-          pointBorderColor: 'transparent',
-          pointHoverRadius: 6,
-          order: 2,
-        },
-        {
-          label: 'Fed Funds Rate',
-          yAxisID: 'yFFR',
-          data: ffr,
-          borderColor: 'rgba(61,200,120,0.85)',
-          borderWidth: 2,
-          backgroundColor: 'transparent',
-          fill: false,
-          tension: 0,
-          stepped: true,
-          pointRadius: 0,
-          pointHoverRadius: 4,
-          order: 1,
-        }
-      ]
+      datasets: [{
+        label: 'FOMC Composite Tone',
+        data: scores,
+        borderColor: '#e8b84b',
+        borderWidth: 2,
+        backgroundColor: grad,
+        fill: true,
+        tension: 0.3,
+        pointRadius: scores.map((v, i) => i === scores.length - 1 ? 5 : (Math.abs(v) > 12 ? 3 : 1.5)),
+        pointBackgroundColor: scores.map(gc),
+        pointBorderColor: 'transparent',
+        pointHoverRadius: 6,
+      }]
     },
     options: {
       responsive: true,
@@ -1824,11 +1792,8 @@ function initCompositeChart(series) {
               return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             },
             label: item => {
-              if (item.datasetIndex === 0) {
-                const v = item.raw;
-                return `  Tone  ${v > 0 ? '+' : ''}${v}  ${gl(v)}`;
-              }
-              return `  FFR   ${item.raw.toFixed(2)}%`;
+              const v = item.raw;
+              return '  Tone  ' + (v > 0 ? '+' : '') + v + '  ' + gl(v);
             }
           }
         }
@@ -1844,49 +1809,23 @@ function initCompositeChart(series) {
             autoSkip: true,
           }
         },
-        yTone: {
+        y: {
           position: 'left',
-          min: yToneMin,
-          max: yToneMax,
+          min: yMin,
+          max: yMax,
           grid: { color: 'rgba(255,255,255,0.03)' },
           border: { color: 'rgba(232,184,75,0.15)' },
           ticks: {
             color: 'rgba(232,184,75,0.6)',
             font: { family: 'IBM Plex Mono', size: 9 },
             maxTicksLimit: 7,
-            callback: v => v === 0 ? '0' : (v > 0 ? `+${v}` : `${v}`)
-          },
-          title: {
-            display: true,
-            text: 'TONE',
-            color: 'rgba(232,184,75,0.35)',
-            font: { family: 'IBM Plex Mono', size: 8 }
-          }
-        },
-        yFFR: {
-          position: 'right',
-          min: yFFRMin,
-          max: yFFRMax,
-          grid: { drawOnChartArea: false },
-          border: { color: 'rgba(61,200,120,0.2)' },
-          ticks: {
-            color: 'rgba(61,200,120,0.70)',
-            font: { family: 'IBM Plex Mono', size: 9 },
-            maxTicksLimit: 6,
-            callback: v => v.toFixed(2) + '%'
-          },
-          title: {
-            display: true,
-            text: 'FFR',
-            color: 'rgba(61,200,120,0.35)',
-            font: { family: 'IBM Plex Mono', size: 8 }
+            callback: v => v === 0 ? '0' : (v > 0 ? '+' + v : String(v))
           }
         }
       }
     }
   });
 }
-
 function showOverview(){
   selected=null; chart=null; compositeChart=null;
 
