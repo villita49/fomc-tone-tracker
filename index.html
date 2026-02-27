@@ -1629,7 +1629,31 @@ function renderCompositePanel(){
         <div class="kpi"><div class="kpi-v" style="color:var(--dim)">${series.length}</div><div class="kpi-l">Data Points</div></div>
         <div class="kpi"><div class="kpi-v" style="color:var(--dim)">${new Date(latest.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div><div class="kpi-l">Last Updated</div></div>
       </div>
-      <div style="position:relative;height:200px;margin-bottom:10px"><canvas id="compositeChart"></canvas></div>
+      <div style="position:relative;height:220px;margin-bottom:10px"><canvas id="compositeChart" style="display:block;width:100%;height:220px"></canvas></div>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:24px;height:2px;background:#e8b84b;border-radius:1px"></div>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim)">FOMC TONE (left)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:24px;height:2px;background:#3daa6e;border-radius:1px"></div>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim)">FED FUNDS RATE (right)</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;margin-bottom:10px;align-items:center">
+        <div style="display:flex;align-items:center;gap:5px">
+          <div style="width:20px;height:2px;background:#e8b84b;border-radius:1px"></div>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim)">FOMC COMPOSITE TONE</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <div style="width:20px;height:2px;background:rgba(61,170,110,.75);border-radius:1px"></div>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim)">FED FUNDS RATE (RHS)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <div style="width:12px;height:1px;border-top:1px dashed rgba(232,184,75,.35)"></div>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--dim)">FOMC MTG</span>
+        </div>
+      </div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:.56rem;color:var(--dim);letter-spacing:.05em;margin-bottom:6px;text-transform:uppercase">Weight Hierarchy — contribution to composite</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px">
         ${weightedGroups.map(g=>`<div style="display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--border);padding:3px 7px;border-radius:4px">
@@ -1651,6 +1675,33 @@ const FOMC_MEETINGS = [
   '2025-09-17','2025-10-29','2025-12-10',
   '2026-01-29','2026-03-19','2026-05-07',
 ];
+
+// Fed Funds Rate (upper bound) by effective date
+// Source: Federal Reserve historical data
+const FED_FUNDS_RATE = [
+  {date:'2023-07-27', rate:5.50},
+  {date:'2024-09-19', rate:5.00},
+  {date:'2024-11-08', rate:4.75},
+  {date:'2024-12-19', rate:4.50},
+  {date:'2025-01-29', rate:4.50},
+  {date:'2025-03-20', rate:4.50},
+  {date:'2025-05-08', rate:4.50},
+  {date:'2025-06-19', rate:4.50},
+  {date:'2025-07-31', rate:4.50},
+  {date:'2025-09-18', rate:4.25},
+  {date:'2025-10-30', rate:4.25},
+  {date:'2025-12-11', rate:4.25},
+  {date:'2026-01-30', rate:4.25},
+];
+
+function rateAtDate(d) {
+  // Walk the sorted table: return the rate for the most recent change on or before d
+  let rate = 5.50; // pre-series default (peak 2023-mid 2024)
+  for (const r of FED_FUNDS_RATE) {
+    if (d >= r.date) rate = r.rate;
+  }
+  return rate;
+}
 
 function initCompositeChart(series){
   const el=document.getElementById('compositeChart');
@@ -1719,28 +1770,54 @@ function initCompositeChart(series){
     }
   };
 
+  // ── Fed Funds Rate series aligned to speech dates ──
+  const ffrData = labels.map(d => rateAtDate(d));
+
   compositeChart = new Chart(ctx, {
     type: 'line',
     plugins: [meetingPlugin],
     data: {
       labels,
-      datasets:[{
-        data: scores,
-        borderColor: '#e8b84b',
-        borderWidth: 2,
-        backgroundColor: grad,
-        fill: true,
-        pointBackgroundColor: ptColors,
-        pointBorderColor: ptColors,
-        pointRadius: scores.map((sc,i) => i===scores.length-1 ? 6 : (Math.abs(sc)>20?4:2.5)),
-        pointHoverRadius: 7,
-        tension: 0.35,
-      }]
+      datasets:[
+        // Dataset 0: FOMC Composite Tone (left y-axis)
+        {
+          label: 'FOMC Composite Tone',
+          data: scores,
+          yAxisID: 'y',
+          borderColor: '#e8b84b',
+          borderWidth: 2,
+          backgroundColor: grad,
+          fill: true,
+          pointBackgroundColor: ptColors,
+          pointBorderColor: ptColors,
+          pointRadius: scores.map((sc,i) => i===scores.length-1 ? 6 : (Math.abs(sc)>20?4:2.5)),
+          pointHoverRadius: 7,
+          tension: 0.35,
+          order: 2,
+        },
+        // Dataset 1: Fed Funds Rate (right y-axis)
+        {
+          label: 'Fed Funds Rate',
+          data: ffrData,
+          yAxisID: 'y2',
+          borderColor: 'rgba(61,170,110,.75)',
+          borderWidth: 2,
+          backgroundColor: 'transparent',
+          fill: false,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#3daa6e',
+          tension: 0,   // step-like — rates change discretely
+          stepped: 'before',
+          order: 1,
+        }
+      ]
     },
     options:{
       responsive: true,
       maintainAspectRatio: false,
       animation: {duration: 500},
+      interaction: {mode:'index', intersect:false},
       plugins:{
         legend: {display:false},
         tooltip:{
@@ -1758,11 +1835,15 @@ function initCompositeChart(series){
               return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
             },
             label: item => {
-              const sc = item.raw;
-              return ` ${sc>0?'+':''}${sc}  ${gl(sc)}`;
+              if(item.datasetIndex === 0) {
+                const sc = item.raw;
+                return ` Tone: ${sc>0?'+':''}${sc}  ${gl(sc)}`;
+              } else {
+                return ` FFR: ${item.raw.toFixed(2)}%`;
+              }
             },
             afterLabel: item => {
-              // Show if near a FOMC meeting
+              if(item.datasetIndex !== 0) return '';
               const d = item.label;
               const near = FOMC_MEETINGS.find(m => Math.abs(new Date(m)-new Date(d)) < 14*86400000);
               return near ? ` ↳ near FOMC ${new Date(near+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}` : '';
@@ -1780,7 +1861,9 @@ function initCompositeChart(series){
             maxRotation: 0,
           }
         },
+        // Left y-axis: Tone score
         y:{
+          position: 'left',
           min: yMin,
           max: yMax,
           grid:{color:'rgba(255,255,255,.025)'},
@@ -1788,8 +1871,28 @@ function initCompositeChart(series){
             color:'#5a6880',
             font:{family:'IBM Plex Mono',size:9},
             maxTicksLimit: 7,
-            callback: v => v===0 ? '— 0 NEUTRAL' : v>0 ? `+${v}` : `${v}`
+            callback: v => v===0 ? '0 NEUTRAL' : v>0 ? `+${v}` : `${v}`
           }
+        },
+        // Right y-axis: Fed Funds Rate
+        y2:{
+          position: 'right',
+          min: 3.75,
+          max: 5.75,
+          grid:{drawOnChartArea: false},
+          ticks:{
+            color:'rgba(61,170,110,.75)',
+            font:{family:'IBM Plex Mono',size:9},
+            maxTicksLimit: 5,
+            callback: v => v.toFixed(2) + '%'
+          },
+          title:{
+            display: true,
+            text: 'FFR',
+            color: 'rgba(61,170,110,.5)',
+            font: {family:'IBM Plex Mono', size:8},
+          },
+          border:{color:'rgba(61,170,110,.25)'}
         }
       }
     }
@@ -1851,7 +1954,7 @@ function showOverview(){
   document.getElementById('timeline').innerHTML='<div style="padding:36px 14px;text-align:center;color:var(--dim);font-size:.8rem">Select a member</div>';
   renderSidebar();
   // Init composite chart after DOM ready
-  setTimeout(()=>{ const cs=computeComposite(); initCompositeChart(cs); },80);
+  setTimeout(()=>{ const cs=computeComposite(); initCompositeChart(cs); },150);
 }
 
 // ═══════════════════════════════════════
