@@ -978,11 +978,14 @@ function getCacheStats() {
 }
 
 async function scoreAll() {
-  total = Object.values(CORPUS).reduce((a,v) => a+v.length, 0);
+  // Only count speeches for known MEMBERS — ignore stale corpus entries
+  const knownIds = new Set(MEMBERS.map(m => m.id));
+  total = Object.entries(CORPUS).reduce((a,[id,v]) => a + (knownIds.has(id) ? v.length : 0), 0);
   scored = 0;
   const toScore = [];
 
   Object.entries(CORPUS).forEach(([id, speeches]) => {
+    if (!knownIds.has(id)) return; // skip removed members (e.g. kugler)
     speeches.forEach(sp => {
       const entry = {id, ...sp};
 
