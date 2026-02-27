@@ -71,12 +71,16 @@ def match_member(text: str) -> Optional[str]:
 DATE_FMTS = [
     "%B %d, %Y", "%b %d, %Y", "%B %d,%Y",
     "%Y-%m-%d", "%m/%d/%Y", "%d %B %Y", "%B %Y",
+    "%d %b %Y", "%Y/%m/%d",
 ]
 
 def parse_date(text: str) -> Optional[date]:
     if not text:
         return None
     text = re.sub(r'\s+', ' ', text.strip())
+    # Handle RSS pubDate: "Fri, 07 Feb 2026 00:00:00 EST" → "07 Feb 2026"
+    text = re.sub(r'^\w{3},\s*', '', text)            # strip "Fri, "
+    text = re.sub(r'\s+\d{2}:\d{2}:\d{2}.*$', '', text)  # strip time+tz
     text = re.sub(r'(st|nd|rd|th),', ',', text)
     for fmt in DATE_FMTS:
         try:
@@ -157,12 +161,18 @@ def scrape_fed_board() -> list[dict]:
                 elif link.next_sibling:
                     url = str(link.next_sibling).strip()
                 if not url or not url.startswith("http"):
+                    # Try guid as fallback
+                    guid = item.find("guid")
+                    if guid and guid.text.startswith("http"):
+                        url = guid.text.strip()
+                if not url or not url.startswith("http"):
                     continue
                 desc = (desc_el.get_text() if desc_el else "") + " " + title.text
                 speeches.append({
                     "source": "fed_board", "member_id": match_member(desc),
                     "title": title.text.strip(), "date": speech_date.isoformat(),
                     "venue": "", "url": url,
+                    "excerpt": desc_el.get_text()[:500] if desc_el else "",
                 })
             except Exception as e:
                 log.warning(f"  Fed Board RSS item error: {e}")
@@ -228,25 +238,38 @@ def scrape_regional(bank_id: str, list_url: str, base_url: str,
         if not items:
             log.info(f"  {bank_id}: no items via selector, using link fallback")
             seen = set()
+            SPEECH_PATTERNS = [
+                "/speech", "speech/", "/remarks", "/remark", "/talk",
+                "/address", "/testimony", "/comment", "/statement",
+                "/president", "/speaking", "/presentation",
+            ]
             for a in soup.find_all("a", href=True):
                 href = a.get("href","")
                 title = a.text.strip()
-                if not title or len(title) < 12 or href in seen:
+                if not title or len(title) < 8 or href in seen:
                     continue
-                if not any(x in href.lower() for x in ["/speech", "speech/", "/remarks", "/talk"]):
+                href_lower = href.lower()
+                # Must look like a speech link
+                if not any(x in href_lower for x in SPEECH_PATTERNS):
+                    continue
+                # Skip nav/menu links
+                if any(x in href_lower for x in ["#", "javascript:", "mailto:", "/search", "/about", "/contact"]):
                     continue
                 seen.add(href)
+                full_url = href if href.startswith("http") else base_url + (href if href.startswith("/") else "/" + href)
+                # Look for date in parent elements (up to 4 levels)
                 parent = a.find_parent(["li","div","article","tr","p"])
                 desc = parent.get_text(" ", strip=True) if parent else title
-                speech_date = parse_date(desc)
+                # Try progressively wider context for date
+                speech_date = parse_date(desc) or parse_date(title)
                 if not speech_date:
-                    m = re.search(r'(\d{4})[-/](\d{2})[-/](\d{2})', href)
+                    # Try date from URL
+                    m = re.search(r'(20\d{2})[-/](\d{1,2})[-/](\d{1,2})', href)
                     if m:
                         try: speech_date = date(int(m.group(1)),int(m.group(2)),int(m.group(3)))
                         except: pass
                 if not speech_date or speech_date < cutoff:
                     continue
-                full_url = href if href.startswith("http") else base_url + href
                 speeches.append({
                     "source": bank_id, "member_id": match_member(desc + " " + title),
                     "title": title, "date": speech_date.isoformat(),
@@ -312,7 +335,7 @@ REGIONAL_SOURCES = [
                      "https://www.chicagofed.org",
                      "li[class*='item'], div[class*='listing'], div[class*='result'], article",
                      "time, span[class*='date'], .date"),
-    ("stlouis",      "https://www.stlouisfed.org/from-the-president/remarks",
+    ("stlouis",      "https://www.stlouisfed.org/from-the-president/remarks",  # may timeout on CI
                      "https://www.stlouisfed.org",
                      "li[class*='item'], div[class*='item'], article",
                      "time, span[class*='date']"),
