@@ -99,7 +99,7 @@ def parse_date(text: str) -> Optional[date]:
 def fetch_speech_text(url: str) -> str:
     """Fetch and extract main speech text from a URL."""
     try:
-        r = requests.get(url, headers=HEADERS, timeout=30)
+        r = requests.get(url, headers=HEADERS, timeout=45)
         r.raise_for_status()
         soup = BeautifulSoup(r.text, "html.parser")
         for tag in soup(["nav","footer","header","script","style","aside"]):
@@ -132,80 +132,78 @@ def fetch_speech_text(url: str) -> str:
 # ══════════════════════════════════════════════════════════════
 
 def scrape_fed_board() -> list[dict]:
-    """Federal Reserve Board — federalreserve.gov"""
-    url = "https://www.federalreserve.gov/newsevents/speeches.htm"
+    """Federal Reserve Board — uses RSS feed for reliability."""
+    rss_url = "https://www.federalreserve.gov/feeds/speeches.xml"
     speeches = []
     cutoff = date.today() - timedelta(days=LOOKBACK_DAYS)
     try:
-        r = requests.get(url, headers=HEADERS, timeout=30)
+        r = requests.get(rss_url, headers=HEADERS, timeout=45)
         r.raise_for_status()
-        soup = BeautifulSoup(r.text, "html.parser")
-        log.info(f"  Fed Board: {len(r.text):,} bytes")
-
-        for row in soup.select("div.row.eventlist"):
+        soup = BeautifulSoup(r.text, "xml")
+        log.info(f"  Fed Board RSS: {len(r.text):,} bytes")
+        for item in soup.find_all("item"):
             try:
-                date_el = row.select_one("p.itemDate, .datetime, time")
-                a = row.select_one("em a, p.itemPara a, a")
-                if not a:
+                title   = item.find("title")
+                link    = item.find("link")
+                pubdate = item.find("pubDate")
+                desc_el = item.find("description")
+                if not title or not link: continue
+                speech_date = parse_date(pubdate.text.strip() if pubdate else "")
+                if not speech_date or speech_date < cutoff: continue
+                # RSS <link> in BeautifulSoup xml mode can be tricky
+                url = ""
+                if link.string:
+                    url = link.string.strip()
+                elif link.next_sibling:
+                    url = str(link.next_sibling).strip()
+                if not url or not url.startswith("http"):
                     continue
-                date_str = date_el.text.strip() if date_el else ""
-                speech_date = parse_date(date_str)
-                if not speech_date:
-                    m = re.search(r'(\d{8})', a.get("href",""))
-                    if m:
-                        ds = m.group(1)
-                        try: speech_date = date(int(ds[:4]),int(ds[4:6]),int(ds[6:8]))
-                        except: pass
-                if not speech_date or speech_date < cutoff:
-                    continue
-                speech_url = a.get("href","")
-                if not speech_url.startswith("http"):
-                    speech_url = "https://www.federalreserve.gov" + speech_url
-                desc = row.get_text(" ", strip=True)
+                desc = (desc_el.get_text() if desc_el else "") + " " + title.text
                 speeches.append({
                     "source": "fed_board", "member_id": match_member(desc),
-                    "title": a.text.strip(), "date": speech_date.isoformat(),
-                    "venue": "", "url": speech_url,
+                    "title": title.text.strip(), "date": speech_date.isoformat(),
+                    "venue": "", "url": url,
                 })
             except Exception as e:
-                log.warning(f"  Fed Board row error: {e}")
+                log.warning(f"  Fed Board RSS item error: {e}")
     except Exception as e:
-        log.error(f"  Fed Board failed: {e}")
+        log.error(f"  Fed Board RSS failed: {e}")
     log.info(f"  Fed Board: {len(speeches)} found")
     return speeches
 
 
 def scrape_newyorkfed() -> list[dict]:
-    """NY Fed — newyorkfed.org"""
-    url = "https://www.newyorkfed.org/newsevents/speeches"
+    """NY Fed — uses RSS feed for reliability."""
+    rss_url = "https://www.newyorkfed.org/rss/feeds/speeches"
     speeches = []
     cutoff = date.today() - timedelta(days=LOOKBACK_DAYS)
     try:
-        r = requests.get(url, headers=HEADERS, timeout=30)
+        r = requests.get(rss_url, headers=HEADERS, timeout=45)
         r.raise_for_status()
-        soup = BeautifulSoup(r.text, "html.parser")
-        log.info(f"  NY Fed: {len(r.text):,} bytes")
-        for item in soup.select("li.ts-list-item, li[class*='speech'], div.ts-item, ul.news-list li"):
+        soup = BeautifulSoup(r.text, "xml")
+        log.info(f"  NY Fed RSS: {len(r.text):,} bytes")
+        for item in soup.find_all("item"):
             try:
-                date_el = item.select_one("time, span[class*='date'], .date")
-                a = item.select_one("a")
-                if not a: continue
-                date_str = (date_el.get("datetime","") or date_el.text.strip()) if date_el else ""
-                speech_date = parse_date(date_str) or parse_date(item.get_text(" ", strip=True))
+                title   = item.find("title")
+                link    = item.find("link")
+                pubdate = item.find("pubDate") or item.find("dc:date")
+                desc_el = item.find("description")
+                if not title or not link: continue
+                speech_date = parse_date(pubdate.text.strip() if pubdate else "")
                 if not speech_date or speech_date < cutoff: continue
-                speech_url = a.get("href","")
-                if not speech_url.startswith("http"):
-                    speech_url = "https://www.newyorkfed.org" + speech_url
-                desc = item.get_text(" ", strip=True)
+                url = link.text.strip()
+                if not url.startswith("http"):
+                    url = link.next_sibling.strip() if link.next_sibling else ""
+                desc = (desc_el.text if desc_el else "") + " " + title.text
                 speeches.append({
                     "source": "ny_fed", "member_id": match_member(desc),
-                    "title": a.text.strip(), "date": speech_date.isoformat(),
-                    "venue": "", "url": speech_url,
+                    "title": title.text.strip(), "date": speech_date.isoformat(),
+                    "venue": "", "url": url,
                 })
             except Exception as e:
-                log.warning(f"  NY Fed item error: {e}")
+                log.warning(f"  NY Fed RSS item error: {e}")
     except Exception as e:
-        log.error(f"  NY Fed failed: {e}")
+        log.error(f"  NY Fed RSS failed: {e}")
     log.info(f"  NY Fed: {len(speeches)} found")
     return speeches
 
@@ -216,7 +214,7 @@ def scrape_regional(bank_id: str, list_url: str, base_url: str,
     speeches = []
     cutoff = date.today() - timedelta(days=LOOKBACK_DAYS)
     try:
-        r = requests.get(list_url, headers=HEADERS, timeout=30)
+        r = requests.get(list_url, headers=HEADERS, timeout=45)
         r.raise_for_status()
         soup = BeautifulSoup(r.text, "html.parser")
         log.info(f"  {bank_id}: {len(r.text):,} bytes")
@@ -288,51 +286,52 @@ def scrape_regional(bank_id: str, list_url: str, base_url: str,
 
 
 # Source registry: (bank_id, url, base_url, item_selectors, date_selectors)
+# URLs verified Feb 2026 — using most reliable endpoints per site
 REGIONAL_SOURCES = [
     ("boston",       "https://www.bostonfed.org/news-and-events/speeches.aspx",
                      "https://www.bostonfed.org",
-                     "div.speech-list-item, li.speech-item, article.news-item, div[class*='speech']",
-                     "span.date, time, .speech-date"),
-    ("philadelphia", "https://www.philadelphiafed.org/publications/speeches",
+                     "li.row, div.speeches-list-item, div[class*='speech'], li[class*='item']",
+                     "span[class*='date'], time, p.date"),
+    ("philadelphia", "https://www.philadelphiafed.org/speeches",
                      "https://www.philadelphiafed.org",
-                     "div.publication-listing-item, li.pub-list-item, div[class*='listing']",
+                     "li.speech, div[class*='speech'], article",
                      "span.date, time, .pub-date"),
     ("cleveland",    "https://www.clevelandfed.org/collections/speeches",
                      "https://www.clevelandfed.org",
-                     "div.collection-item, article.speech, li.speech, div[class*='item']",
-                     "time, span.date, .article-date"),
+                     "div[class*='card'], article, li[class*='item']",
+                     "time, span[class*='date']"),
     ("richmond",     "https://www.richmondfed.org/press_room/speeches",
                      "https://www.richmondfed.org",
-                     "div.pressroom-item, li.speech-list-item, article, div[class*='item']",
-                     "time, span[class*='date'], .date"),
+                     "li.result, div[class*='result'], article",
+                     "time, span[class*='date']"),
     ("atlanta",      "https://www.atlantafed.org/news/speeches",
                      "https://www.atlantafed.org",
-                     "div.speech-item, li.news-item, article.speech, div[class*='item']",
-                     "time, span.date, .news-date"),
-    ("chicago",      "https://www.chicagofed.org/publications/speeches",
+                     "div[class*='teaser'], li[class*='item'], article",
+                     "time, span[class*='date']"),
+    ("chicago",      "https://www.chicagofed.org/research/speeches",
                      "https://www.chicagofed.org",
-                     "div.publication-listing, li.speech-item, div[class*='listing']",
-                     "time, span.date, .pub-date"),
-    ("stlouis",      "https://www.stlouisfed.org/from-the-president/speeches-and-presentations",
+                     "li[class*='item'], div[class*='listing'], article",
+                     "time, span[class*='date']"),
+    ("stlouis",      "https://www.stlouisfed.org/news-releases/speeches-and-presentations",
                      "https://www.stlouisfed.org",
-                     "div.news-item, li.speech, article, div[class*='item']",
-                     "time, span.date, .article-date"),
+                     "li[class*='item'], div[class*='item'], article",
+                     "time, span[class*='date']"),
     ("minneapolis",  "https://www.minneapolisfed.org/speeches",
                      "https://www.minneapolisfed.org",
-                     "div.speech-item, li.speech, article.speech, div[class*='item']",
-                     "time, span.date, .date"),
-    ("kansascity",   "https://www.kansascityfed.org/speeches/",
+                     "div[class*='card'], li[class*='item'], article",
+                     "time, span[class*='date']"),
+    ("kansascity",   "https://www.kansascityfed.org/research/speeches/",
                      "https://www.kansascityfed.org",
-                     "div.speech-listing, li.speech-item, article, div[class*='item']",
-                     "time, span[class*='date'], .date"),
+                     "li[class*='item'], div[class*='result'], article",
+                     "time, span[class*='date']"),
     ("dallas",       "https://www.dallasfed.org/news/speeches",
                      "https://www.dallasfed.org",
-                     "div.speech-item, li.item, article.speech, div[class*='item']",
-                     "time, span.date, .news-date"),
-    ("sanfrancisco", "https://www.frbsf.org/news-and-events/speeches/",
+                     "div[class*='item'], li[class*='item'], article",
+                     "time, span[class*='date']"),
+    ("sanfrancisco", "https://www.frbsf.org/economic-research/speeches/",
                      "https://www.frbsf.org",
-                     "div.speech-item, li.post, article, div[class*='item']",
-                     "time, span.date, .entry-date"),
+                     "li[class*='item'], div[class*='post'], article",
+                     "time, span[class*='date']"),
 ]
 
 
